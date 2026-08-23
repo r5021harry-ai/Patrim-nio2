@@ -38,7 +38,7 @@ st.markdown("""
         background-color: #FFFFFF !important;
     }
 
-    /* BARRA LATERAL (SEM VERDE, TEMA CLARO) */
+    /* BARRA LATERAL */
     [data-testid="stSidebar"] {
         background-color: #F8FAFC !important;
         border-right: 1px solid #E2E8F0 !important;
@@ -54,7 +54,7 @@ st.markdown("""
         color: #0F172A !important;
     }
 
-    /* EXPANDERS (CAIXAS DE MENU DA SIDEBAR) */
+    /* EXPANDERS */
     [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
@@ -68,7 +68,7 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* INPUTS / CAMPOS DE TEXTO NA SIDEBAR E GERAL */
+    /* INPUTS */
     input, select, textarea, 
     [data-baseweb="input"], 
     [data-baseweb="base-input"],
@@ -77,13 +77,6 @@ st.markdown("""
         color: #0F172A !important;
         border: 1px solid #CBD5E1 !important;
         border-radius: 6px !important;
-    }
-
-    /* FORMULÁRIOS DA SIDEBAR */
-    [data-testid="stSidebar"] [data-testid="stForm"] {
-        background-color: #F1F5F9 !important;
-        border: 1px solid #E2E8F0 !important;
-        padding: 12px !important;
     }
 
     /* MÉTRICAS SUPERIORES */
@@ -163,7 +156,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- IMPORTAÇÕES INTELIGENTES ---
+# --- IMPORTAÇÕES INTELIGENTES DE MÓDULOS ---
 try:
     db_mod = importlib.import_module("banco de dados.db")
 except ModuleNotFoundError:
@@ -191,14 +184,17 @@ try:
     dash_mod = importlib.import_module("vistas.dashboard")
     gest_mod = importlib.import_module("vistas.gestao")
     rel_mod = importlib.import_module("vistas.relatorios")
+    conf_mod = importlib.import_module("vistas.conferencia")
 except ModuleNotFoundError:
     dash_mod = importlib.import_module("views.dashboard")
     gest_mod = importlib.import_module("views.gestao")
     rel_mod = importlib.import_module("views.relatorios")
+    conf_mod = importlib.import_module("views.conferencia")
 
 render_dashboard = dash_mod.render_dashboard
 render_gestao = gest_mod.render_gestao
 render_relatorios = rel_mod.render_relatorios
+render_conferencia = conf_mod.render_conferencia
 
 # --- FUNÇÃO PARA GERAR O PDF DA ETIQUETA ---
 def gerar_pdf_etiqueta(codigo, nome_item):
@@ -324,7 +320,7 @@ else:
 
             with st.expander("➕ Cadastrar Novo Usuário"):
                 with st.form("form_user"):
-                    n_user = st.text_input("Novo Usuário")
+                    n_user = st.text_input("Novo Usuário (ex: funcionario1)")
                     n_pass = st.text_input("Senha", type="password")
                     n_role = st.selectbox("Perfil", ["user", "admin"])
                     if st.form_submit_button("Criar Usuário", type="primary"):
@@ -342,7 +338,13 @@ else:
                     st.rerun()
 
     # --- ÁREA PRINCIPAL DA APLICAÇÃO ---
-    aba = st.tabs(["📊 Dashboard Geral", "📦 Gestão de Patrimônio", "🏷️ Emissão de Etiquetas", "📑 Relatórios & Importação"])
+    aba = st.tabs([
+        "📊 Dashboard Geral", 
+        "📦 Gestão de Patrimônio", 
+        "📱 Conferência / Auditoria", 
+        "🏷️ Emissão de Etiquetas", 
+        "📑 Relatórios & Importação"
+    ])
     
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
@@ -354,6 +356,12 @@ else:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
 
     with aba[2]:
+        try:
+            render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+        except TypeError:
+            render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db)
+
+    with aba[3]:
         st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
         
         df_patrimonio = pd.DataFrame(st.session_state.patrimonio_db)
@@ -363,8 +371,8 @@ else:
                 'patrimonio' if 'patrimonio' in df_patrimonio.columns else df_patrimonio.columns[0]
             )
             
-            col_nome = 'item' if 'item' in df_patrimonio.columns else (
-                'nome' if 'nome' in df_patrimonio.columns else (
+            col_nome = 'nome' if 'nome' in df_patrimonio.columns else (
+                'item' if 'item' in df_patrimonio.columns else (
                     'descricao' if 'descricao' in df_patrimonio.columns else df_patrimonio.columns[1] if len(df_patrimonio.columns) > 1 else col_etiqueta
                 )
             )
@@ -420,7 +428,7 @@ else:
         else:
             st.info("Nenhum patrimônio disponível no banco de dados para gerar etiquetas.")
 
-    with aba[3]:
+    with aba[4]:
         try:
             render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
