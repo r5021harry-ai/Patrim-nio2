@@ -4,8 +4,12 @@ import pandas as pd
 import importlib
 import urllib.parse
 import io
-import requests
-from PIL import Image, ImageDraw, ImageFont
+
+# Importações para gerar o PDF da etiqueta
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.barcode import code128
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -28,7 +32,6 @@ st.markdown("""
         background-color: #0E1318;
     }
 
-    /* Cards de Métricas */
     [data-testid="stMetric"] {
         background: #141B21;
         border: 1px solid #2A363F;
@@ -37,7 +40,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    /* Estilização das Abas (Tabs) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 16px;
         background-color: transparent;
@@ -63,13 +65,11 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    /* Sidebar */
     [data-testid="stSidebar"] {
         background-color: #141B21;
         border-right: 1px solid #2A363F;
     }
 
-    /* Botões Padrão */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
@@ -84,7 +84,6 @@ st.markdown("""
         color: #FFFFFF;
     }
 
-    /* Card de Etiqueta */
     .etiqueta-card {
         background: #FFFFFF;
         color: #000000;
@@ -133,6 +132,39 @@ except ModuleNotFoundError:
 render_dashboard = dash_mod.render_dashboard
 render_gestao = gest_mod.render_gestao
 render_relatorios = rel_mod.render_relatorios
+
+# --- FUNÇÃO PARA GERAR O PDF DA ETIQUETA (50mm x 30mm) ---
+def gerar_pdf_etiqueta(codigo, nome_item):
+    buffer = io.BytesIO()
+    largura = 50 * mm
+    altura = 30 * mm
+    
+    c = canvas.Canvas(buffer, pagesize=(largura, altura))
+    
+    # Cabeçalho
+    c.setFont("Helvetica-Bold", 7)
+    c.setFillColorRGB(0.18, 0.49, 0.20) # Verde ISPN
+    c.drawCentredString(largura / 2.0, altura - 5 * mm, "PATRIMÔNIO ISPN")
+    
+    # Nome do Item
+    c.setFont("Helvetica-Bold", 6)
+    c.setFillColorRGB(0, 0, 0)
+    nome_curto = (nome_item[:20] + '...') if len(nome_item) > 20 else nome_item
+    c.drawCentredString(largura / 2.0, altura - 9 * mm, nome_curto)
+    
+    # Código de Barras (Code128)
+    barcode = code128.Code128(codigo, barHeight=11 * mm, barWidth=0.28 * mm)
+    barcode.drawOn(c, (largura - barcode.width) / 2.0, 7 * mm)
+    
+    # Código numérico/texto abaixo da barra
+    c.setFont("Helvetica", 6)
+    c.drawCentredString(largura / 2.0, 3 * mm, f"Etiqueta: {codigo}")
+    
+    c.showPage()
+    c.save()
+    
+    buffer.seek(0)
+    return buffer.getvalue()
 
 # --- CARREGAMENTO DE DADOS ---
 data = load_all_data()
@@ -215,7 +247,6 @@ else:
 
         st.divider()
 
-        # Painel do Administrador
         if st.session_state.role == "admin":
             st.markdown("<p style='color: #2E7D32; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;'> Painel Admin</p>", unsafe_allow_html=True)
             
@@ -260,7 +291,7 @@ else:
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
 
-    # --- ABA DE ETIQUETAS COM GERADOR E DOWNLOAD DE IMAGEM ---
+    # --- ABA DE ETIQUETAS COM BOTÃO DE DOWNLOAD PDF ---
     with aba[2]:
         st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
         
@@ -287,13 +318,13 @@ else:
                 item_dados = df_patrimonio[df_patrimonio[col_etiqueta].astype(str) == etiqueta_cod].iloc[0]
                 item_titulo = str(item_dados[col_nome])
                 
-                # URL de geração do código de barras
                 barcode_url = f"https://barcode.tec-it.com/barcode.ashx?data={urllib.parse.quote(etiqueta_cod)}&code=Code128&translate-esc=false"
                 
                 st.markdown("---")
                 c_etiqueta, c_info = st.columns([1, 2])
                 
                 with c_etiqueta:
+                    # Visualização da Etiqueta
                     st.markdown(
                         f"""
                         <div class="etiqueta-card">
@@ -306,43 +337,18 @@ else:
                         unsafe_allow_html=True
                     )
 
-                    # --- GERADOR DA IMAGEM PARA DOWNLOAD (600x350 px) ---
-                    try:
-                        # Baixa o código de barras
-                        res = requests.get(barcode_url, timeout=5)
-                        bc_img = Image.open(io.BytesIO(res.content)).convert("RGBA")
+                    # Geração do Arquivo PDF (Tamanho exato 50mm x 30mm)
+                    pdf_bytes = gerar_pdf_etiqueta(etiqueta_cod, item_titulo)
 
-                        # Cria o canvas da etiqueta (600x350 pixels)
-                        label_img = Image.new("RGBA", (600, 350), "white")
-                        draw = ImageDraw.Draw(label_img)
-
-                        # Desenha cabeçalho e textos
-                        draw.text((300, 30), "PATRIMÔNIO ISPN", fill="#2E7D32", anchor="mm")
-                        draw.text((300, 75), item_titulo, fill="black", anchor="mm")
-
-                        # Redimensiona e cola o código de barras no centro
-                        bc_resized = bc_img.resize((480, 180))
-                        label_img.paste(bc_resized, (60, 105), mask=bc_resized)
-
-                        # Rodapé com o código da etiqueta
-                        draw.text((300, 310), f"Etiqueta: {etiqueta_cod}", fill="#555555", anchor="mm")
-
-                        # Converte para PNG em memória
-                        img_byte_arr = io.BytesIO()
-                        label_img.convert("RGB").save(img_byte_arr, format='PNG')
-                        img_bytes = img_byte_arr.getvalue()
-
-                        # Botão de download
-                        st.download_button(
-                            label="📥 Baixar Etiqueta (PNG Pequena)",
-                            data=img_bytes,
-                            file_name=f"etiqueta_{etiqueta_cod}.png",
-                            mime="image/png",
-                            use_container_width=True,
-                            type="primary"
-                        )
-                    except Exception as e:
-                        st.warning("Conecte-se à internet para habilitar o download em PNG.")
+                    # Botão de Download do PDF
+                    st.download_button(
+                        label="📄 Baixar Etiqueta em PDF (50x30mm)",
+                        data=pdf_bytes,
+                        file_name=f"etiqueta_{etiqueta_cod}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        type="primary"
+                    )
 
                 with c_info:
                     st.markdown(f"**Código:** `{etiqueta_cod}`")
