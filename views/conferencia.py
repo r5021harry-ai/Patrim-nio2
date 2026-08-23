@@ -23,7 +23,7 @@ try:
 except ImportError:
     HAS_REPORTLAB = False
 
-# Tenta importar bibliotecas de leitura de código de barras
+# Tenta importar bibliotecas de leitura de código de barras e imagem
 try:
     from PIL import Image as PILImage
     import cv2
@@ -74,7 +74,7 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
     text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=9, leading=13)
     bold_style = ParagraphStyle('BoldStyle', parent=styles['Normal'], fontSize=9, leading=13, fontName="Helvetica-Bold")
     
-    # Cabeçalho com Horário Oficial do Brasil
+    # Cabeçalho com Horário Oficial do Brasil de quando o documento foi gerado
     agora_br = obter_agora_br().strftime('%d/%m/%Y às %H:%M:%S')
     story.append(Paragraph(f"<b>{titulo_relatorio}</b>", title_style))
     story.append(Paragraph(f"Gerado em: {agora_br}", subtitle_style))
@@ -95,19 +95,25 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
         if item_bd:
             categoria = item_bd.get("categoria", item_bd.get("tipo", "Não informada"))
 
-        # Formata Data/Hora para o padrão brasileiro
-        data_orig = vist.get('data', 'N/A')
-        try:
-            dt_obj = datetime.strptime(data_orig, "%Y-%m-%d %H:%M:%S")
-            data_formatada = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
-        except Exception:
-            data_formatada = data_orig
+        # Trata e formata a Data/Hora da VISTORIA registrada no banco de dados
+        data_orig = vist.get('data', '')
+        data_formatada = "N/A"
+        
+        if data_orig:
+            try:
+                if "às" in str(data_orig):
+                    data_formatada = str(data_orig)
+                else:
+                    dt_obj = datetime.strptime(str(data_orig).split(".")[0], "%Y-%m-%d %H:%M:%S")
+                    data_formatada = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
+            except Exception:
+                data_formatada = str(data_orig)
 
         # Trata emojis para evitar caracteres indeferidos (■) no PDF
         estado = dict_detalhes.get('Estado', 'N/I')
         estado_limpo = estado.replace("🟢", "").replace("🟡", "").replace("🔴", "").replace("⚠️", "").strip()
 
-        # Monta texto das informações
+        # Monta texto das informações do item
         info_text = f"""
         <b>Item:</b> {vist.get('item', 'N/I')}<br/>
         <b>Código/Patrimônio:</b> {vist.get('etiqueta', 'N/A')}<br/>
@@ -120,9 +126,10 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
         """
         p_info = Paragraph(info_text, text_style)
 
-        # Processa Foto para o PDF
+        # Processa e redimensiona a foto proporcionalmente (sem distorcer)
         img_element = Paragraph("<i>Sem foto de comprovação</i>", text_style)
         foto = vist.get("foto") or vist.get("imagem")
+        
         if foto:
             try:
                 if isinstance(foto, str) and not foto.startswith("http"):
@@ -131,16 +138,31 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
                     foto_bytes = foto
                 
                 img_buffer = io.BytesIO(foto_bytes)
-                img_element = RLImage(img_buffer, width=130, height=100)
+                
+                # Abre com PIL para ler a proporção original da imagem
+                if HAS_VISION:
+                    pil_img = PILImage.open(img_buffer)
+                    orig_w, orig_h = pil_img.size
+                    
+                    max_w, max_h = 140.0, 100.0
+                    ratio = min(max_w / orig_w, max_h / orig_h)
+                    new_w = orig_w * ratio
+                    new_h = orig_h * ratio
+                    
+                    img_buffer.seek(0)
+                    img_element = RLImage(img_buffer, width=new_w, height=new_h)
+                else:
+                    img_element = RLImage(img_buffer, width=130, height=100)
             except Exception:
                 img_element = Paragraph("<i>Erro ao carregar imagem</i>", text_style)
 
         # Tabela em Card para cada item
-        tabela_card = Table([[p_info, img_element]], colWidths=[380, 150])
+        tabela_card = Table([[p_info, img_element]], colWidths=[370, 150])
         tabela_card.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F8FAFC")),
             ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#CBD5E1")),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('ALIGN', (1,0), (1,0), 'CENTER'),
             ('PADDING', (0,0), (-1,-1), 8),
         ]))
 
@@ -371,9 +393,18 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                         chave, valor = p.split(":", 1)
                         dict_detalhes[chave.strip()] = valor.strip()
 
+                # Formatação da data na exibição em tela
+                data_tela = vist.get('data', 'N/A')
+                try:
+                    if "às" not in str(data_tela) and data_tela != 'N/A':
+                        dt_obj = datetime.strptime(str(data_tela).split(".")[0], "%Y-%m-%d %H:%M:%S")
+                        data_tela = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
+                except Exception:
+                    pass
+
                 with col_info:
                     st.markdown(f"### 📦 {vist.get('item', 'Item')} — **Código:** `{vist.get('etiqueta', 'N/A')}`")
-                    st.caption(f"📅 Data/Hora: {vist.get('data', 'N/A')}")
+                    st.caption(f"📅 Data/Hora da Vistoria: {data_tela}")
                     
                     if "Estado" in dict_detalhes:
                         st.markdown(f"* **Estado:** {dict_detalhes['Estado']}")
@@ -396,7 +427,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                         st.image(
                             foto,
                             caption=f"Foto da Vistoria ({vist.get('etiqueta', '')})",
-                            width=220
+                            use_container_width=True
                         )
 
                 st.divider()
