@@ -1,16 +1,49 @@
 import streamlit as st
 import os
 import pandas as pd
+import importlib
 
-from database.db import load_all_data
-from services.auth import authenticate_user, create_user, update_password
-from views.dashboard import render_dashboard
-from views.gestao import render_gestao
-from views.relatorios import render_relatorios
+# Importação flexível do módulo de Banco de Dados
+try:
+    db_mod = importlib.import_module("banco de dados.db")
+except ModuleNotFoundError:
+    try:
+        db_mod = importlib.import_module("banco_dados.db")
+    except ModuleNotFoundError:
+        db_mod = importlib.import_module("database.db")
+
+load_all_data = getattr(db_mod, "load_all_data", getattr(db_mod, "cargar_todos_os_dados", None))
+
+# Importação flexível dos Serviços
+try:
+    auth_mod = importlib.import_module("serviços.auth")
+except ModuleNotFoundError:
+    try:
+        auth_mod = importlib.import_module("servicos.auth")
+    except ModuleNotFoundError:
+        auth_mod = importlib.import_module("services.auth")
+
+authenticate_user = auth_mod.authenticate_user
+create_user = auth_mod.create_user
+update_password = auth_mod.update_password
+
+# Importação flexível das Visualizações (Vistas)
+try:
+    dash_mod = importlib.import_module("vistas.dashboard")
+    gest_mod = importlib.import_module("vistas.gestao")
+    rel_mod = importlib.import_module("vistas.relatorios")
+except ModuleNotFoundError:
+    dash_mod = importlib.import_module("views.dashboard")
+    gest_mod = importlib.import_module("views.gestao")
+    rel_mod = importlib.import_module("views.relatorios")
+
+render_dashboard = dash_mod.render_dashboard
+render_gestao = gest_mod.render_gestao
+render_relatorios = rel_mod.render_relatorios
 
 st.set_page_config(page_title="Patrimônio ISPN", page_icon="📦", layout="wide")
 
-# Verificar se a logo local existe
+# Caminho da Logo
 LOGO_PATH = "logo.png" if os.path.exists("logo.png") else "https://ispn.org.br/wp-content/uploads/2020/01/logo-ispn-30anos.png"
 
 # Carregar dados
@@ -21,21 +54,17 @@ else:
     users_db, patrimonio_db, historico_db = data
     cidades_db = {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
 
-if "users_db" not in st.session_state:
-    st.session_state.users_db = users_db
-if "patrimonio_db" not in st.session_state:
-    st.session_state.patrimonio_db = patrimonio_db
-if "historico_db" not in st.session_state:
-    st.session_state.historico_db = historico_db
-if "cidades_db" not in st.session_state:
-    st.session_state.cidades_db = cidades_db
+if "users_db" not in st.session_state: st.session_state.users_db = users_db
+if "patrimonio_db" not in st.session_state: st.session_state.patrimonio_db = patrimonio_db
+if "historico_db" not in st.session_state: st.session_state.historico_db = historico_db
+if "cidades_db" not in st.session_state: st.session_state.cidades_db = cidades_db
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.role = ""
 
-# --- LOGIN ---
+# --- TELA DE LOGIN ---
 def login_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -115,7 +144,7 @@ else:
                     else:
                         st.warning("Preencha todos os campos.")
 
-    # Navegação das Páginas
+    # Aba Navegação
     aba = st.tabs([
         "📊 Dashboard", 
         "➕ Cadastrar & Editar Patrimônio", 
@@ -125,14 +154,12 @@ else:
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
     with aba[1]:
-        # Tenta passar cidades_db para render_gestao, com fallback seguro
         try:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
             
     with aba[2]:
-        # Tenta passar cidades_db para render_relatorios, com fallback seguro
         try:
             render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
