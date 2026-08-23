@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import pandas as pd
 import importlib
+import io
+import urllib.parse
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -11,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS CUSTOMIZADO (LIMPO E CORRIGIDO) ---
+# --- CSS CUSTOMIZADO ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -79,6 +81,17 @@ st.markdown("""
         border: none;
         color: #FFFFFF;
     }
+
+    /* Card de Etiqueta */
+    .etiqueta-card {
+        background: #FFFFFF;
+        color: #000000;
+        padding: 16px;
+        border-radius: 8px;
+        border: 2px solid #000000;
+        text-align: center;
+        margin-bottom: 15px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -137,7 +150,7 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-# --- TELA DE LOGIN CORRIGIDA ---
+# --- TELA DE LOGIN ---
 def login_screen():
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 2, 1])
@@ -179,7 +192,7 @@ else:
     # --- SIDEBAR ---
     with st.sidebar:
         if os.path.exists("logo.png"):
-            side_c1, side_c2, side_c3 = st.sidebar.columns([1, 2, 1])
+            side_c1, side_c2, side_c3 = st.columns([1, 2, 1])
             with side_c2:
                 st.image("logo.png", use_container_width=True)
                 
@@ -234,16 +247,65 @@ else:
                     st.rerun()
 
     # --- ÁREA PRINCIPAL DA APLICAÇÃO ---
-    aba = st.tabs(["📊 Dashboard Geral", "📦 Gestão de Patrimônio", "📑 Relatórios & Importação"])
+    aba = st.tabs(["📊 Dashboard Geral", "📦 Gestão de Patrimônio", "🏷️ Emissão de Etiquetas", "📑 Relatórios & Importação"])
     
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
+
     with aba[1]:
         try:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
+
+    # --- NOVA ABA: EMISSÃO DE ETIQUETAS ---
     with aba[2]:
+        st.subheader("🏷️ Gerador e Leitor de Etiquetas Patrimoniais")
+        st.write("Selecione um bem para gerar a etiqueta com Código de Barras Code128 pronto para impressão.")
+        
+        df_patrimonio = pd.DataFrame(st.session_state.patrimonio_db)
+        
+        if not df_patrimonio.empty:
+            col_sel1, col_sel2 = st.columns([2, 1])
+            with col_sel1:
+                opcoes_itens = df_patrimonio['etiqueta'].astype(str) + " - " + df_patrimonio['item'].astype(str)
+                item_selecionado = st.selectbox("Selecione o Patrimônio:", opcoes_itens)
+            
+            if item_selecionado:
+                etiqueta_cod = item_selecionado.split(" - ")[0]
+                item_dados = df_patrimonio[df_patrimonio['etiqueta'] == etiqueta_cod].iloc[0]
+                
+                # URL para geração do código de barras Code128
+                barcode_url = f"https://barcode.tec-it.com/barcode.ashx?data={urllib.parse.quote(etiqueta_cod)}&code=Code128&translate-esc=false"
+                
+                st.markdown("---")
+                
+                c_etiqueta, c_info = st.columns([1, 2])
+                
+                with c_etiqueta:
+                    st.markdown(
+                        f"""
+                        <div class="etiqueta-card">
+                            <h3 style="margin: 0; color: #2E7D32; font-size: 18px;">PATRIMÔNIO ISPN</h3>
+                            <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_dados['item']}</p>
+                            <img src="{barcode_url}" alt="Código de Barras" style="width: 80%; margin: 10px 0;">
+                            <p style="margin: 0; font-size: 12px; color: #555;">Local: {item_dados.get('localizacao', 'N/A')}</p>
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
+                
+                with c_info:
+                    st.markdown(f"**Etiqueta:** `{item_dados['etiqueta']}`")
+                    st.markdown(f"**Descrição:** {item_dados['item']}")
+                    st.markdown(f"**Categoria:** {item_dados.get('categoria', 'N/A')}")
+                    st.markdown(f"**Localização:** {item_dados.get('localizacao', 'N/A')}")
+                    st.markdown(f"**Responsável:** {item_dados.get('responsavel', 'N/A')}")
+                    st.markdown(f"**Status:** `{item_dados.get('status', 'N/A')}`")
+        else:
+            st.info("Nenhum patrimônio cadastrado no sistema para emissão de etiquetas.")
+
+    with aba[3]:
         try:
             render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
