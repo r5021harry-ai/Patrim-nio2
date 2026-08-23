@@ -181,3 +181,69 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
 
                     st.session_state.msg_conf_sucesso = f"Conferência do item {item.get(col_etiqueta)} registrada com sucesso por {usuario_auditor}!"
                     st.rerun()
+
+    # --- PAINEL DE VISTORIAS REALIZADAS ---
+    st.divider()
+    st.subheader("📸 Painel Exclusivo de Vistorias Realizadas")
+
+    # Filtra histórico por ações de Vistoria/Auditoria
+    vistorias = [h for h in historico_db if "Vistoria" in h.get("acao", "") or "Auditoria" in h.get("acao", "")]
+
+    if not vistorias:
+        st.info("Nenhuma vistoria ou auditoria registrada até o momento.")
+    else:
+        # Filtro opcional por item no histórico
+        opcoes_filtro = ["-- Exibir Todos --"] + sorted(list(set(f"{h.get('etiqueta')} - {h.get('item')}" for h in vistorias if h.get('etiqueta'))))
+        filtro_sel = st.selectbox("Filtrar por Código de Patrimônio:", opcoes_filtro)
+
+        if filtro_sel != "-- Exibir Todos --":
+            cod_filtro = filtro_sel.split(" - ")[0]
+            vistorias = [h for h in vistorias if str(h.get("etiqueta")) == cod_filtro]
+
+        # Exibe em ordem decrescente (mais recentes primeiro)
+        for vist in reversed(vistorias):
+            with st.container():
+                # Colunas [3, 1] mantêm texto próximo e foto compacta no lado direito
+                col_info, col_img = st.columns([3, 1])
+
+                # Processamento das informações do texto
+                detalhes = vist.get("detalhes", "")
+                partes = [p.strip() for p in detalhes.split("|")]
+                
+                dict_detalhes = {}
+                for p in partes:
+                    if ":" in p:
+                        chave, valor = p.split(":", 1)
+                        dict_detalhes[chave.strip()] = valor.strip()
+
+                with col_info:
+                    st.markdown(f"### 📦 {vist.get('item', 'Item')} — **Código:** `{vist.get('etiqueta', 'N/A')}`")
+                    st.caption(f"📅 Data/Hora: {vist.get('data', 'N/A')}")
+                    
+                    if "Estado" in dict_detalhes:
+                        st.markdown(f"* **Estado:** {dict_detalhes['Estado']}")
+                    if "Status" in dict_detalhes:
+                        st.markdown(f"* **Status:** {dict_detalhes['Status']}")
+                    if "Obs" in dict_detalhes:
+                        st.markdown(f"* **Obs:** {dict_detalhes['Obs']}")
+                    if "Auditor" in dict_detalhes:
+                        st.markdown(f"* **Auditor:** {dict_detalhes['Auditor']}")
+
+                with col_img:
+                    foto = vist.get("foto") or vist.get("imagem")
+                    if foto:
+                        # Se estiver em Base64, decodifica
+                        if isinstance(foto, str) and not foto.startswith("http"):
+                            try:
+                                foto = base64.b64decode(foto)
+                            except Exception:
+                                pass
+                        
+                        # Limita a largura em 220px para aprox. e manter o layout compacto
+                        st.image(
+                            foto,
+                            caption=f"Foto da Vistoria ({vist.get('etiqueta', '')})",
+                            width=220
+                        )
+
+                st.divider()
