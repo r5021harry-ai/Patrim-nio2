@@ -38,20 +38,4 @@ def update_patrimonio(patrimonio_db, etiqueta, nome, categoria, localizacao, sta
             save_json(PATRIMONIO_FILE, patrimonio_db)
             return True, "Dados atualizados!"
     return False, "Item não encontrado."
-    def delete_patrimonio(patrimonio_db, historico_db, etiqueta):
-    etiqueta = etiqueta.strip().upper()
-    for index, item in enumerate(patrimonio_db):
-        if item["etiqueta"] == etiqueta:
-            item_removido = patrimonio_db.pop(index)
-            historico_db.append({
-                "data": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "etiqueta": etiqueta,
-                "item": item_removido["nome"],
-                "acao": "Exclusão",
-                "responsavel": item_removido.get("responsavel", "Admin"),
-                "localizacao": item_removido.get("localizacao", "")
-            })
-            save_json(PATRIMONIO_FILE, patrimonio_db)
-            save_json(HISTORICO_FILE, historico_db)
-            return True, f"Patrimônio '{etiqueta}' excluído com sucesso!"
-    return False, "Item não encontrado."
+    
