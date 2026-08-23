@@ -11,127 +11,74 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS CUSTOMIZADO (DESIGN SYSTEM PREMIUM ISPN) ---
+# --- CSS CUSTOMIZADO (TABS NEUTRAS) ---
 st.markdown("""
 <style>
-    /* 1. Reset & Fontes Principais */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* 2. Customização do Fundo e Estilo Global */
     .stApp {
         background-color: #0E1318;
     }
 
-    /* 3. Cards Elegantes (Métricas e Seções) */
+    /* Cards de Métricas */
     [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #1A232A 0%, #141B21 100%);
+        background: #141B21;
         border: 1px solid #2A363F;
         border-radius: 12px;
         padding: 16px 20px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-        transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    
-    [data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        border-color: #2E7D32;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    [data-testid="stMetricLabel"] {
-        color: #9CA3AF !important;
-        font-size: 0.85rem !important;
-        font-weight: 500 !important;
-    }
-
-    [data-testid="stMetricValue"] {
-        color: #E2E8F0 !important;
-        font-size: 1.8rem !important;
-        font-weight: 700 !important;
-    }
-
-    /* 4. Estilização dos Tabs */
+    /* Estilização das Abas (Tabs) Sem Fundo Verde */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #141B21;
-        padding: 6px;
-        border-radius: 10px;
-        border: 1px solid #2A363F;
+        gap: 16px;
+        background-color: transparent;
+        padding: 0;
+        border-bottom: 1px solid #2A363F;
     }
 
     .stTabs [data-baseweb="tab"] {
-        height: 44px;
-        white-space: pre-wrap;
-        border-radius: 8px;
-        color: #9CA3AF;
+        height: 40px;
+        background-color: transparent !important;
+        border: none !important;
+        color: #9CA3AF !important;
         font-weight: 500;
         font-size: 0.95rem;
-        padding: 0px 20px;
-        border: none !important;
+        padding: 0px 8px;
     }
 
+    /* Aba Selecionada Apenas com Borda Inferior Discreta */
     .stTabs [aria-selected="true"] {
-        background-color: #2E7D32 !important;
         color: #FFFFFF !important;
         font-weight: 600 !important;
-        box-shadow: 0 2px 8px rgba(46, 125, 50, 0.4);
+        border-bottom: 2px solid #2E7D32 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
     }
 
-    /* 5. Sidebar Estilizada */
+    /* Sidebar */
     [data-testid="stSidebar"] {
         background-color: #141B21;
         border-right: 1px solid #2A363F;
     }
 
-    /* 6. Botões Personalizados */
+    /* Botões Padrão */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
-        transition: all 0.2s ease;
         border: 1px solid #2A363F;
         background-color: #1A232A;
         color: #E2E8F0;
     }
 
-    .stButton>button:hover {
-        border-color: #2E7D32;
-        color: #4CAF50;
-    }
-
-    /* Botão Primário (Ações Principais) */
     .stButton>button[kind="primary"] {
-        background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+        background: #2E7D32;
         border: none;
         color: #FFFFFF;
-        box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
-    }
-
-    .stButton>button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
-        box-shadow: 0 6px 16px rgba(46, 125, 50, 0.4);
-    }
-
-    /* 7. Inputs e Formulários */
-    .stTextInput>div>div>input, .stSelectbox>div>div>div {
-        background-color: #1A232A !important;
-        border: 1px solid #2A363F !important;
-        border-radius: 8px !important;
-        color: #E2E8F0 !important;
-    }
-
-    .stTextInput>div>div>input:focus {
-        border-color: #2E7D32 !important;
-        box-shadow: 0 0 0 1px #2E7D32 !important;
-    }
-
-    /* 8. Tabela / Dataframe */
-    [data-testid="stDataFrame"] {
-        border: 1px solid #2A363F;
-        border-radius: 10px;
-        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -241,7 +188,7 @@ else:
     # --- SIDEBAR ---
     with st.sidebar:
         if os.path.exists("logo.png"):
-            side_c1, side_c2, side_c3 = st.columns([1, 2, 1])
+            side_c1, side_c2, side_c3 = st.sidebar.columns([1, 2, 1])
             with side_c2:
                 st.image("logo.png", use_container_width=True)
                 
