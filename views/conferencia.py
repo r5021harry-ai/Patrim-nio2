@@ -284,8 +284,8 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
             v_copy["categoria"] = cat
             vistorias_com_categoria.append(v_copy)
 
-        # --- SEÇÃO DE DOWNLOAD DE RELATÓRIOS PDF ---
-        col_down1, col_down2, col_down3 = st.columns(3)
+        # --- SEÇÃO DE DOWNLOAD DE RELATÓRIOS PDF ALINHADOS ---
+        col_down1, col_down2, col_down3 = st.columns([1, 1, 1], vertical_alignment="bottom")
 
         with col_down1:
             if HAS_REPORTLAB:
@@ -301,7 +301,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                     use_container_width=True
                 )
             else:
-                st.error("Instale 'reportlab' para baixar PDF (`pip install reportlab`).")
+                st.error("Instale 'reportlab' para baixar PDF.")
 
         with col_down2:
             lista_categorias = sorted(list(categorias_set))
@@ -312,8 +312,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
             )
 
         with col_down3:
-            st.write("")
-            st.write("")
             if HAS_REPORTLAB:
                 vistorias_filtradas_cat = [v for v in vistorias_com_categoria if v["categoria"] == cat_selecionada]
                 pdf_cat = gerar_pdf_vistorias(
