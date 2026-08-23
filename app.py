@@ -18,31 +18,42 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS CUSTOMIZADO (TEMA CLARO & ELEGANTE) ---
+# --- REGRAS CSS: DESIGN CLARO & MÉTRICAS VISÍVEIS ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    /* Fundo da Aplicação Principal */
-    html, body, [class*="css"] {
+    :root {
+        color-scheme: light !important;
+    }
+
+    html, body, [class*="css"], [data-testid="stAppViewContainer"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: #F8FAFC !important;
+        color: #0F172A !important;
     }
 
-    .stApp {
-        background-color: #F8FAFC;
-        color: #1E293B;
-    }
-
-    /* Cards e Métricas */
+    /* FIX DEFINITIVO DAS MÉTRICAS (TEXTOS VISÍVEIS) */
     [data-testid="stMetric"] {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
+        background: #FFFFFF !important;
+        border: 1px solid #E2E8F0 !important;
         border-radius: 12px;
         padding: 16px 20px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     }
 
-    /* Abas Superiores */
+    [data-testid="stMetricLabel"] *, [data-testid="stMetricLabel"] p {
+        color: #475569 !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+    }
+
+    [data-testid="stMetricValue"] *, [data-testid="stMetricValue"] div {
+        color: #0F382C !important;
+        font-weight: 700 !important;
+    }
+
+    /* ABAS SUPERIORES */
     .stTabs [data-baseweb="tab-list"] {
         gap: 16px;
         background-color: transparent;
@@ -54,59 +65,53 @@ st.markdown("""
         height: 44px;
         background-color: transparent !important;
         border: none !important;
-        color: #64748B !important;
-        font-weight: 500;
+        color: #475569 !important;
+        font-weight: 600;
         font-size: 0.95rem;
         padding: 0px 12px;
     }
 
     .stTabs [aria-selected="true"] {
-        color: #1E3A8A !important;
+        color: #0F382C !important;
         font-weight: 700 !important;
         border-bottom: 3px solid #15803D !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
     }
 
-    /* BARRA LATERAL (Verde Verdejante / ISPN) */
+    /* BARRA LATERAL (VERDE ISPN) */
     [data-testid="stSidebar"] {
-        background-color: #0F382C;
+        background-color: #0F382C !important;
         border-right: 1px solid #14532D;
     }
 
-    [data-testid="stSidebar"] * {
-        color: #F1F5F9 !important;
+    [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+        color: #F8FAFC !important;
     }
 
     [data-testid="stSidebar"] .stButton>button {
-        background-color: #166534;
-        border: 1px solid #22C55E;
+        background-color: #166534 !important;
+        border: 1px solid #22C55E !important;
         color: #FFFFFF !important;
     }
 
-    /* Botões Globais */
+    /* BOTÕES GERAIS */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
-        border: 1px solid #CBD5E1;
-        background-color: #FFFFFF;
-        color: #1E293B;
+        border: 1px solid #CBD5E1 !important;
+        background-color: #FFFFFF !important;
+        color: #0F172A !important;
     }
 
     .stButton>button[kind="primary"] {
-        background: #15803D;
-        border: none;
+        background-color: #15803D !important;
+        border: none !important;
         color: #FFFFFF !important;
     }
 
-    .stButton>button[kind="primary"]:hover {
-        background: #166534;
-    }
-
-    /* Visualização do Cartão da Etiqueta */
+    /* CARTÃO DA ETIQUETA */
     .etiqueta-card {
-        background: #FFFFFF;
-        color: #000000;
+        background: #FFFFFF !important;
+        color: #000000 !important;
         padding: 18px;
         border-radius: 10px;
         border: 2px solid #0F382C;
@@ -161,7 +166,6 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     altura = 30 * mm
     
     c = canvas.Canvas(buffer, pagesize=(largura, altura))
-    
     c.setFont("Helvetica-Bold", 7)
     c.setFillColorRGB(0.09, 0.50, 0.24)
     c.drawCentredString(largura / 2.0, altura - 5 * mm, "PATRIMÔNIO ISPN")
