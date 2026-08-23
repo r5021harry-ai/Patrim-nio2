@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import importlib
 
-# Importação inteligente do Banco de Dados (trata pastas com espaço)
+# Importação inteligente do Banco de Dados
 try:
     db_mod = importlib.import_module("banco de dados.db")
 except ModuleNotFoundError:
@@ -62,14 +62,26 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-# Tela de Login
-if not st.session_state.logged_in:
+# --- TELA DE LOGIN CENTRADA ---
+def login_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if os.path.exists("logo.png"):
-            st.image("logo.png", width=200)
-        st.markdown("<h2 style='text-align: center; color: #2E7D32;'>Patrimônio ISPN</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #666;'>Instituto Sociedade, População e Natureza</p>", unsafe_allow_html=True)
+            img_c1, img_c2, img_c3 = st.columns([1, 2, 1])
+            with img_c2:
+                st.image("logo.png", use_container_width=True)
+                
+        st.markdown(
+            """
+            <div style="text-align: center; margin-bottom: 15px;">
+                <h1 style="color: #2E7D32; font-family: 'Arial', sans-serif; font-size: 32px; font-weight: bold; margin-top: 5px;">
+                    Patrimônio ISPN
+                </h1>
+                <p style="color: #888; font-size: 14px;">Instituto Sociedade, População e Natureza</p>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
         st.markdown("---")
         with st.form("login_form"):
             u_input = st.text_input("Usuário")
@@ -83,6 +95,9 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
+
+if not st.session_state.logged_in:
+    login_screen()
 else:
     # Sidebar
     if os.path.exists("logo.png"):
