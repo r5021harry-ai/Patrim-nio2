@@ -44,12 +44,12 @@ def render_dashboard(patrimonio_db):
                 values='Quantidade', 
                 hole=0.5,
                 color_discrete_sequence=px.colors.qualitative.Set2,
-                template="plotly_white"
+                template="plotly_dark"
             )
             fig_loc.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#0F172A")
+                paper_bgcolor='rgba(20, 27, 33, 1)',
+                plot_bgcolor='rgba(20, 27, 33, 1)',
+                font=dict(color="#E2E8F0")
             )
             st.plotly_chart(fig_loc, use_container_width=True)
 
@@ -65,12 +65,12 @@ def render_dashboard(patrimonio_db):
                 color=col_status,
                 barmode='stack',
                 color_discrete_sequence=px.colors.qualitative.Safe,
-                template="plotly_white"
+                template="plotly_dark"
             )
             fig_cat.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="#0F172A"),
+                paper_bgcolor='rgba(20, 27, 33, 1)',
+                plot_bgcolor='rgba(20, 27, 33, 1)',
+                font=dict(color="#E2E8F0"),
                 xaxis_title="Categoria",
                 yaxis_title="Quantidade"
             )
