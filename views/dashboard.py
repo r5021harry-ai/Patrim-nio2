@@ -5,6 +5,10 @@ import plotly.express as px
 def render_dashboard(patrimonio_db):
     st.title("📊 Dashboard - Patrimônio ISPN")
     
+    if not patrimonio_db:
+        st.info("Nenhum patrimônio cadastrado para exibir no dashboard.")
+        return
+
     df = pd.DataFrame(patrimonio_db)
     
     if df.empty:
@@ -46,7 +50,6 @@ def render_dashboard(patrimonio_db):
                 color_discrete_sequence=px.colors.qualitative.Set2
             )
             
-            # Força o fundo branco e fontes escuras no Plotly
             fig_loc.update_layout(
                 paper_bgcolor='#FFFFFF',
                 plot_bgcolor='#FFFFFF',
@@ -59,18 +62,19 @@ def render_dashboard(patrimonio_db):
     with col_g2:
         st.subheader("📁 Distribuição por Categoria ISPN")
         if col_categoria in df.columns and col_status in df.columns:
-            df_cat = df.groupby([col_categoria, col_status]).size().reset_index(name='count')
+            # Agrupamento seguro para evitar conflito de nomes no reset_index
+            df_cat = df.groupby([col_categoria, col_status], as_index=False).size()
+            df_cat.rename(columns={'size': 'Qtd'}, inplace=True)
             
             fig_cat = px.bar(
                 df_cat, 
                 x=col_categoria, 
-                y='count', 
+                y='Qtd', 
                 color=col_status,
                 barmode='stack',
                 color_discrete_sequence=px.colors.qualitative.Safe
             )
             
-            # Força o fundo branco, grade clara e textos escuros
             fig_cat.update_layout(
                 paper_bgcolor='#FFFFFF',
                 plot_bgcolor='#FFFFFF',
