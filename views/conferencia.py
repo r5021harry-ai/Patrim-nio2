@@ -53,14 +53,13 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
 
     df = pd.DataFrame(patrimonio_db)
     
-    # Mapeamento dinâmico e seguro de todas as colunas
+    # Mapeamento dinâmico e seguro de colunas
     col_etiqueta = 'patrimonio' if 'patrimonio' in df.columns else ('etiqueta' if 'etiqueta' in df.columns else df.columns[0])
     col_nome = 'descricao' if 'descricao' in df.columns else ('nome' if 'nome' in df.columns else ('item' if 'item' in df.columns else df.columns[1]))
     col_status = 'estado' if 'estado' in df.columns else ('status' if 'status' in df.columns else df.columns[2])
     col_local = 'cidade' if 'cidade' in df.columns else ('localizacao' if 'localizacao' in df.columns else df.columns[3])
     col_responsavel = 'usuario' if 'usuario' in df.columns else ('responsavel' if 'responsavel' in df.columns else df.columns[4])
 
-    # Se houver mensagem salva após salvar a conferência
     if "msg_conf_sucesso" in st.session_state:
         st.success(st.session_state.msg_conf_sucesso)
         del st.session_state.msg_conf_sucesso
@@ -131,7 +130,20 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                     obs = st.text_area("Observações da Vistoria", placeholder="Ex: Pneu dianteiro desgastado, arranhão na lateral...")
                     
                 st.markdown("**📸 Foto de Comprovação da Vistoria (Opcional):**")
-                foto_vistoria = st.camera_input("Tirar Foto do Bem", key="foto_vistoria_cam")
+                
+                # Escolha de método para anexar a foto
+                opcao_foto = st.radio(
+                    "Como deseja anexar a foto?",
+                    ["📤 Enviar Foto do Arquivo", "📷 Tirar Foto Agora"],
+                    horizontal=True,
+                    key="radio_opcao_foto"
+                )
+
+                foto_vistoria = None
+                if "Enviar Foto" in opcao_foto:
+                    foto_vistoria = st.file_uploader("Selecione uma imagem (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"], key="upload_foto_file")
+                else:
+                    foto_vistoria = st.camera_input("Tirar Foto do Bem", key="foto_vistoria_cam")
 
                 submit = st.form_submit_button("Registrar Conferência", type="primary", use_container_width=True)
 
@@ -145,9 +157,9 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                     patrimonio_db[idx]['ultima_vistoria'] = data_hora
                     patrimonio_db[idx]['vistoriado_por'] = usuario_auditor
 
-                    # Converte foto capturada em Base64
+                    # Converte imagem para Base64 se enviada
                     foto_b64 = ""
-                    if foto_vistoria:
+                    if foto_vistoria is not None:
                         foto_bytes = foto_vistoria.getvalue()
                         foto_b64 = base64.b64encode(foto_bytes).decode('utf-8')
 
