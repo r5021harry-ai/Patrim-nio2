@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- REGRAS CSS: FUNDO BRANCO E INTERFACE CLARA ---
+# --- REGRAS CSS: TEMA CLARO HARMONIZADO ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -27,7 +27,7 @@ st.markdown("""
         color-scheme: light !important;
     }
 
-    /* Fundo Global Branco */
+    /* Fundo Global */
     html, body, [class*="css"], [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         background-color: #FFFFFF !important;
@@ -38,22 +38,55 @@ st.markdown("""
         background-color: #FFFFFF !important;
     }
 
-    /* Campos de Entrada e Formulários (Login / Cadastros) */
-    input, select, textarea, [data-baseweb="input"], [data-baseweb="base-input"] {
+    /* BARRA LATERAL (SEM VERDE, TEMA CLARO) */
+    [data-testid="stSidebar"] {
         background-color: #F8FAFC !important;
-        color: #0F172A !important;
-        border-color: #CBD5E1 !important;
+        border-right: 1px solid #E2E8F0 !important;
     }
 
-    [data-testid="stForm"] {
+    [data-testid="stSidebar"] *, 
+    [data-testid="stSidebar"] p, 
+    [data-testid="stSidebar"] span, 
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3 {
+        color: #0F172A !important;
+    }
+
+    /* EXPANDERS (CAIXAS DE MENU DA SIDEBAR) */
+    [data-testid="stSidebar"] [data-testid="stExpander"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        border-radius: 8px !important;
+        margin-bottom: 8px !important;
     }
 
-    /* Métricas Superiores */
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary *,
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary span {
+        color: #0F172A !important;
+        font-weight: 600 !important;
+    }
+
+    /* INPUTS / CAMPOS DE TEXTO NA SIDEBAR E GERAL */
+    input, select, textarea, 
+    [data-baseweb="input"], 
+    [data-baseweb="base-input"],
+    [data-testid="stSidebar"] input {
+        background-color: #FFFFFF !important;
+        color: #0F172A !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 6px !important;
+    }
+
+    /* FORMULÁRIOS DA SIDEBAR */
+    [data-testid="stSidebar"] [data-testid="stForm"] {
+        background-color: #F1F5F9 !important;
+        border: 1px solid #E2E8F0 !important;
+        padding: 12px !important;
+    }
+
+    /* MÉTRICAS SUPERIORES */
     [data-testid="stMetric"] {
         background: #F8FAFC !important;
         border: 1px solid #E2E8F0 !important;
@@ -69,11 +102,11 @@ st.markdown("""
     }
 
     [data-testid="stMetricValue"] *, [data-testid="stMetricValue"] div {
-        color: #0F382C !important;
+        color: #15803D !important;
         font-weight: 700 !important;
     }
 
-    /* Abas Superiores */
+    /* ABAS SUPERIORES */
     .stTabs [data-baseweb="tab-list"] {
         gap: 16px;
         background-color: transparent;
@@ -92,28 +125,12 @@ st.markdown("""
     }
 
     .stTabs [aria-selected="true"] {
-        color: #0F382C !important;
+        color: #15803D !important;
         font-weight: 700 !important;
         border-bottom: 3px solid #15803D !important;
     }
 
-    /* Barra Lateral (Verde ISPN) */
-    [data-testid="stSidebar"] {
-        background-color: #0F382C !important;
-        border-right: 1px solid #14532D;
-    }
-
-    [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-        color: #F8FAFC !important;
-    }
-
-    [data-testid="stSidebar"] .stButton>button {
-        background-color: #166534 !important;
-        border: 1px solid #22C55E !important;
-        color: #FFFFFF !important;
-    }
-
-    /* Botões Gerais */
+    /* BOTÕES GERAIS */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
@@ -132,13 +149,13 @@ st.markdown("""
         background-color: #166534 !important;
     }
 
-    /* Cartão da Etiqueta */
+    /* ETIQUETA CARD */
     .etiqueta-card {
         background: #FFFFFF !important;
         color: #000000 !important;
         padding: 18px;
         border-radius: 10px;
-        border: 2px solid #0F382C;
+        border: 2px solid #15803D;
         text-align: center;
         margin-bottom: 15px;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -242,7 +259,7 @@ def login_screen():
         st.markdown(
             """
             <div style="text-align: center; margin-top: 10px; margin-bottom: 20px;">
-                <h2 style="color: #0F382C; font-weight: 700; margin-bottom: 4px; font-size: 26px;">
+                <h2 style="color: #15803D; font-weight: 700; margin-bottom: 4px; font-size: 26px;">
                     Patrimônio ISPN
                 </h2>
                 <p style="color: #64748B; font-size: 13px; margin: 0;">Instituto Sociedade, População e Natureza</p>
@@ -268,7 +285,7 @@ def login_screen():
 if not st.session_state.logged_in:
     login_screen()
 else:
-    # --- SIDEBAR ---
+    # --- SIDEBAR HARMONIZADA ---
     with st.sidebar:
         if os.path.exists("logo.png"):
             side_c1, side_c2, side_c3 = st.columns([1, 2, 1])
@@ -277,10 +294,10 @@ else:
                 
         st.markdown(
             f"""
-            <div style='text-align: center; margin-top: 10px; margin-bottom: 15px; background: #164E3D; padding: 10px; border-radius: 8px;'>
-                <span style='color: #CBD5E1; font-size: 12px;'>Conectado como</span><br>
-                <b style='color: #FFFFFF; font-size: 14px;'>{st.session_state.username}</b> 
-                <span style='background-color: #22C55E; color: #0F382C; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{st.session_state.role.upper()}</span>
+            <div style='text-align: center; margin-top: 10px; margin-bottom: 15px; background: #FFFFFF; padding: 12px; border-radius: 8px; border: 1px solid #CBD5E1;'>
+                <span style='color: #64748B; font-size: 12px;'>Conectado como</span><br>
+                <b style='color: #0F172A; font-size: 14px;'>{st.session_state.username}</b> 
+                <span style='background-color: #15803D; color: #FFFFFF; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{st.session_state.role.upper()}</span>
             </div>
             """, 
             unsafe_allow_html=True
@@ -293,12 +310,12 @@ else:
         st.divider()
 
         if st.session_state.role == "admin":
-            st.markdown("<p style='color: #4ADE80; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;'> Painel Admin</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #15803D; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;'> PAINEL ADMIN</p>", unsafe_allow_html=True)
             
             with st.expander("🔑 Alterar minha senha"):
                 with st.form("form_pass"):
                     n_pass = st.text_input("Nova Senha", type="password")
-                    if st.form_submit_button("Atualizar"):
+                    if st.form_submit_button("Atualizar", type="primary"):
                         if n_pass:
                             update_password(st.session_state.users_db, st.session_state.username, n_pass)
                             st.success("Senha alterada!")
@@ -310,7 +327,7 @@ else:
                     n_user = st.text_input("Novo Usuário")
                     n_pass = st.text_input("Senha", type="password")
                     n_role = st.selectbox("Perfil", ["user", "admin"])
-                    if st.form_submit_button("Criar Usuário"):
+                    if st.form_submit_button("Criar Usuário", type="primary"):
                         if n_user and n_pass:
                             ok, msg = create_user(st.session_state.users_db, n_user, n_pass, n_role)
                             if ok: st.success(msg)
