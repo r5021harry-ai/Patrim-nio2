@@ -3,7 +3,140 @@ import os
 import pandas as pd
 import importlib
 
-# Importação inteligente do Banco de Dados
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(
+    page_title="Patrimônio ISPN", 
+    page_icon="📦", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- CSS CUSTOMIZADO (DESIGN SYSTEM PREMIUM ISPN) ---
+st.markdown("""
+<style>
+    /* 1. Reset & Fontes Principais */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* 2. Customização do Fundo e Estilo Global */
+    .stApp {
+        background-color: #0E1318;
+    }
+
+    /* 3. Cards Elegantes (Métricas e Seções) */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1A232A 0%, #141B21 100%);
+        border: 1px solid #2A363F;
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    
+    [data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        border-color: #2E7D32;
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: #9CA3AF !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+    }
+
+    [data-testid="stMetricValue"] {
+        color: #E2E8F0 !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+    }
+
+    /* 4. Estilização dos Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #141B21;
+        padding: 6px;
+        border-radius: 10px;
+        border: 1px solid #2A363F;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 44px;
+        white-space: pre-wrap;
+        border-radius: 8px;
+        color: #9CA3AF;
+        font-weight: 500;
+        font-size: 0.95rem;
+        padding: 0px 20px;
+        border: none !important;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: #2E7D32 !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        box-shadow: 0 2px 8px rgba(46, 125, 50, 0.4);
+    }
+
+    /* 5. Sidebar Estilizada */
+    [data-testid="stSidebar"] {
+        background-color: #141B21;
+        border-right: 1px solid #2A363F;
+    }
+
+    /* 6. Botões Personalizados */
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: 1px solid #2A363F;
+        background-color: #1A232A;
+        color: #E2E8F0;
+    }
+
+    .stButton>button:hover {
+        border-color: #2E7D32;
+        color: #4CAF50;
+    }
+
+    /* Botão Primário (Ações Principais) */
+    .stButton>button[kind="primary"] {
+        background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+        border: none;
+        color: #FFFFFF;
+        box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
+    }
+
+    .stButton>button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #388E3C 0%, #2E7D32 100%);
+        box-shadow: 0 6px 16px rgba(46, 125, 50, 0.4);
+    }
+
+    /* 7. Inputs e Formulários */
+    .stTextInput>div>div>input, .stSelectbox>div>div>div {
+        background-color: #1A232A !important;
+        border: 1px solid #2A363F !important;
+        border-radius: 8px !important;
+        color: #E2E8F0 !important;
+    }
+
+    .stTextInput>div>div>input:focus {
+        border-color: #2E7D32 !important;
+        box-shadow: 0 0 0 1px #2E7D32 !important;
+    }
+
+    /* 8. Tabela / Dataframe */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #2A363F;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- IMPORTAÇÕES INTELIGENTES ---
 try:
     db_mod = importlib.import_module("banco de dados.db")
 except ModuleNotFoundError:
@@ -15,7 +148,6 @@ except ModuleNotFoundError:
 load_all_data = getattr(db_mod, "load_all_data", getattr(db_mod, "cargar_todos_os_dados", None))
 save_all_data = getattr(db_mod, "save_all_data", getattr(db_mod, "guardar_todos_os_dados", None))
 
-# Importação inteligente de Serviços
 try:
     auth_mod = importlib.import_module("serviços.auth")
 except ModuleNotFoundError:
@@ -28,7 +160,6 @@ authenticate_user = auth_mod.authenticate_user
 create_user = auth_mod.create_user
 update_password = auth_mod.update_password
 
-# Importação inteligente de Vistas
 try:
     dash_mod = importlib.import_module("vistas.dashboard")
     gest_mod = importlib.import_module("vistas.gestao")
@@ -42,12 +173,7 @@ render_dashboard = dash_mod.render_dashboard
 render_gestao = gest_mod.render_gestao
 render_relatorios = rel_mod.render_relatorios
 
-# Configuração da página
-st.set_page_config(page_title="Patrimônio ISPN", page_icon="📦", layout="wide")
-
-LOGO_PATH = "logo.png" if os.path.exists("logo.png") else "https://ispn.org.br/wp-content/uploads/2020/01/logo-ispn-30anos.png"
-
-# Carregar dados
+# --- CARREGAMENTO DE DADOS ---
 data = load_all_data()
 if len(data) == 4:
     users_db, patrimonio_db, historico_db, cidades_db = data
@@ -65,10 +191,17 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-# --- TELA DE LOGIN CENTRADA ---
+# --- TELA DE LOGIN ---
 def login_screen():
-    col1, col2, col3 = st.columns([1, 2, 1])
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    _, col2, _ = st.columns([1.2, 1.6, 1.2])
     with col2:
+        st.markdown(
+            """
+            <div style="background: #141B21; border: 1px solid #2A363F; padding: 32px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            """, unsafe_allow_html=True
+        )
+        
         if os.path.exists("logo.png"):
             img_c1, img_c2, img_c3 = st.columns([1, 2, 1])
             with img_c2:
@@ -76,20 +209,21 @@ def login_screen():
                 
         st.markdown(
             """
-            <div style="text-align: center; margin-bottom: 15px;">
-                <h1 style="color: #2E7D32; font-family: 'Arial', sans-serif; font-size: 32px; font-weight: bold; margin-top: 5px;">
+            <div style="text-align: center; margin-top: 10px; margin-bottom: 25px;">
+                <h2 style="color: #FFFFFF; font-weight: 700; margin-bottom: 4px; font-size: 26px;">
                     Patrimônio ISPN
-                </h1>
-                <p style="color: #888; font-size: 14px;">Instituto Sociedade, População e Natureza</p>
+                </h2>
+                <p style="color: #9CA3AF; font-size: 13px; margin: 0;">Instituto Sociedade, População e Natureza</p>
             </div>
             """, 
             unsafe_allow_html=True
         )
-        st.markdown("---")
+        
         with st.form("login_form"):
             u_input = st.text_input("Usuário")
             p_input = st.text_input("Senha", type="password")
-            if st.form_submit_button("Entrar no Sistema", use_container_width=True):
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary"):
                 ok, role = authenticate_user(st.session_state.users_db, u_input, p_input)
                 if ok:
                     st.session_state.logged_in = True
@@ -98,62 +232,71 @@ def login_screen():
                     st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login_screen()
 else:
-    # --- SIDEBAR CENTRALIZADA ---
-    if os.path.exists("logo.png"):
-        side_c1, side_c2, side_c3 = st.sidebar.columns([1, 2, 1])
-        with side_c2:
-            st.image("logo.png", use_container_width=True)
-            
-    st.sidebar.markdown(
-        f"<div style='text-align: center; margin-bottom: 10px;'>👤 Logado como: <b>{st.session_state.username}</b> (<code>{st.session_state.role.upper()}</code>)</div>", 
-        unsafe_allow_html=True
-    )
-    
-    if st.sidebar.button("🚪 Sair", use_container_width=True):
-        st.session_state.logged_in = False
-        st.rerun()
-
-    st.sidebar.divider()
-
-    # Painel Admin
-    if st.session_state.role == "admin":
-        st.sidebar.subheader("⚙️ Configurações Admin")
+    # --- SIDEBAR ---
+    with st.sidebar:
+        if os.path.exists("logo.png"):
+            side_c1, side_c2, side_c3 = st.columns([1, 2, 1])
+            with side_c2:
+                st.image("logo.png", use_container_width=True)
+                
+        st.markdown(
+            f"""
+            <div style='text-align: center; margin-top: 10px; margin-bottom: 15px; background: #1A232A; padding: 10px; border-radius: 8px; border: 1px solid #2A363F;'>
+                <span style='color: #9CA3AF; font-size: 12px;'>Conectado como</span><br>
+                <b style='color: #E2E8F0; font-size: 14px;'>{st.session_state.username}</b> 
+                <span style='background-color: #2E7D32; color: #FFF; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{st.session_state.role.upper()}</span>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
         
-        with st.sidebar.expander("🔑 Alterar minha senha"):
-            with st.form("form_pass"):
-                n_pass = st.text_input("Nova Senha", type="password")
-                if st.form_submit_button("Atualizar Senha"):
-                    if n_pass:
-                        update_password(st.session_state.users_db, st.session_state.username, n_pass)
-                        st.success("Senha alterada!")
-                    else:
-                        st.warning("Informe uma senha válida.")
+        if st.button("🚪 Sair", use_container_width=True):
+            st.session_state.logged_in = False
+            st.rerun()
 
-        with st.sidebar.expander("➕ Cadastrar Novo Usuário"):
-            with st.form("form_user"):
-                n_user = st.text_input("Novo Usuário")
-                n_pass = st.text_input("Senha", type="password")
-                n_role = st.selectbox("Perfil", ["user", "admin"])
-                if st.form_submit_button("Criar Usuário"):
-                    if n_user and n_pass:
-                        ok, msg = create_user(st.session_state.users_db, n_user, n_pass, n_role)
-                        if ok: st.success(msg)
-                        else: st.error(msg)
+        st.divider()
 
-        with st.sidebar.expander("🗑️ Gerenciar Dados"):
-            if st.button("Limpar Histórico Geral", type="primary", use_container_width=True):
-                st.session_state.historico_db = []
-                if save_all_data:
-                    save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, [], st.session_state.cidades_db)
-                st.success("Histórico limpo com sucesso!")
-                st.rerun()
+        # Painel do Administrador
+        if st.session_state.role == "admin":
+            st.markdown("<p style='color: #2E7D32; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;'> Painel Admin</p>", unsafe_allow_html=True)
+            
+            with st.expander("🔑 Alterar minha senha"):
+                with st.form("form_pass"):
+                    n_pass = st.text_input("Nova Senha", type="password")
+                    if st.form_submit_button("Atualizar"):
+                        if n_pass:
+                            update_password(st.session_state.users_db, st.session_state.username, n_pass)
+                            st.success("Senha alterada!")
+                        else:
+                            st.warning("Senha inválida.")
 
-    # Navegação do App
-    aba = st.tabs(["📊 Dashboard", "➕ Cadastrar & Editar Patrimônio", "📑 Relatórios & Importação"])
+            with st.expander("➕ Cadastrar Novo Usuário"):
+                with st.form("form_user"):
+                    n_user = st.text_input("Novo Usuário")
+                    n_pass = st.text_input("Senha", type="password")
+                    n_role = st.selectbox("Perfil", ["user", "admin"])
+                    if st.form_submit_button("Criar Usuário"):
+                        if n_user and n_pass:
+                            ok, msg = create_user(st.session_state.users_db, n_user, n_pass, n_role)
+                            if ok: st.success(msg)
+                            else: st.error(msg)
+
+            with st.expander("🗑️ Gerenciar Dados"):
+                if st.button("Limpar Histórico Geral", type="primary", use_container_width=True):
+                    st.session_state.historico_db = []
+                    if save_all_data:
+                        save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, [], st.session_state.cidades_db)
+                    st.success("Histórico limpo com sucesso!")
+                    st.rerun()
+
+    # --- ÁREA PRINCIPAL DA APLICAÇÃO ---
+    aba = st.tabs(["📊 Dashboard Geral", "📦 Gestão de Patrimônio", "📑 Relatórios & Importação"])
     
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
