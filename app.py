@@ -249,7 +249,7 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- CARREGAMENTO DE DADOS E GARANTIA DE ADMIN ---
+# --- CARREGAMENTO DE DADOS E GARANTIA FORÇADA DE ADMIN ---
 if "patrimonio_db" not in st.session_state:
     if load_all_data:
         data = load_all_data()
@@ -263,14 +263,17 @@ if "patrimonio_db" not in st.session_state:
     else:
         users_db, patrimonio_db, historico_db, cidades_db = {}, [], [], {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
 
-    # Garantia: Garante admin/123 para primeiro login ou reset de emergência
-    if "admin" not in users_db or not users_db["admin"]:
-        users_db["admin"] = {
-            "password": auth_mod.hash_password("123"),
-            "role": "admin"
-        }
-        if save_all_data:
-            save_all_data(users_db, patrimonio_db, historico_db, cidades_db)
+    # GARANTIA FORÇADA: Cria ou atualiza a senha do 'admin' diretamente para '123'
+    if "admin" not in users_db:
+        create_user(users_db, "admin", "123", role="admin")
+    else:
+        update_password(users_db, "admin", "123")
+        if isinstance(users_db.get("admin"), dict):
+            users_db["admin"]["role"] = "admin"
+
+    # Salva no arquivo/banco de dados
+    if save_all_data:
+        save_all_data(users_db, patrimonio_db, historico_db, cidades_db)
 
     st.session_state.users_db = users_db
     st.session_state.patrimonio_db = patrimonio_db
@@ -325,7 +328,7 @@ def login_screen():
                     else:
                         st.error("Usuário ou senha incorretos.")
             
-            # Botão "Esqueci a Senha" logo abaixo do formulário
+            # Botão "Esqueci a Senha"
             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             if st.button("Esqueci a Senha", use_container_width=True, type="primary"):
                 st.session_state.login_mode = "recuperar"
@@ -396,7 +399,6 @@ else:
         if st.session_state.role == "admin":
             st.markdown("<p style='color: #15803D; font-weight: 700; font-size: 13px; text-transform: uppercase;'> PAINEL ADMIN</p>", unsafe_allow_html=True)
             
-            # Controle e Gerenciamento Completo de Usuários
             with st.expander("👥 Controle de Usuários e Logins"):
                 dict_users = st.session_state.get("users_db", {})
                 
@@ -409,7 +411,6 @@ else:
                         u_role = u_data.get("role", "user") if isinstance(u_data, dict) else ("admin" if u_sel == "admin" else "user")
                         st.caption(f"Perfil atual: **{u_role}**")
                         
-                        # Mudar Senha
                         n_pass_adm = st.text_input(f"Nova senha para {u_sel}", type="password", key=f"p_{u_sel}")
                         if st.button("💾 Salvar Nova Senha", key=f"btn_p_{u_sel}", type="primary"):
                             if n_pass_adm:
@@ -422,7 +423,6 @@ else:
 
                         st.markdown("---")
                         
-                        # Excluir Usuário
                         if u_sel == st.session_state.username:
                             st.info("Você não pode apagar seu próprio usuário conectado.")
                         else:
@@ -437,7 +437,6 @@ else:
                                 st.success(f"Usuário '{u_sel}' removido!")
                                 st.rerun()
 
-            # Criar Novo Usuário
             with st.expander("➕ Cadastrar Novo Usuário"):
                 with st.form("form_novo_user"):
                     n_user = st.text_input("Usuário (ex: joao)")
@@ -453,7 +452,6 @@ else:
                             else:
                                 st.error(msg)
 
-            # Limpar dados
             with st.expander("🗑️ Gerenciar Dados"):
                 if st.button("Limpar Histórico Geral", type="primary", use_container_width=True):
                     st.session_state.historico_db = []
