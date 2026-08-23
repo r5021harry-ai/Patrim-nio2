@@ -41,36 +41,47 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
     with aba_sub[0]:
         st.subheader("➕ Cadastrar Novo Item")
 
-        col_a, col_b = st.columns(2)
-        with col_a:
-            categoria = st.selectbox(
-                "Categoria", 
-                ["Veículo", "Informática", "Mobiliário", "Eletrodoméstico", "Equipamento de Campo", "Outros"],
-                key="cad_cat"
-            )
-
-            # Lógica para gerar prefixo VEI- para veículos e PAT- para os demais
-            prefixo_sugerido = "VEI-" if categoria == "Veículo" else "PAT-"
-            codigos_existentes = [
+        # Callback para atualizar a etiqueta ao mudar a categoria
+        def atualizar_etiqueta():
+            cat = st.session_state.get("cad_cat")
+            prefixo = "VEI-" if cat == "Veículo" else "PAT-"
+            
+            codigos = [
                 str(item.get(col_etiqueta, "")) 
                 for item in patrimonio_db 
-                if str(item.get(col_etiqueta, "")).startswith(prefixo_sugerido)
+                if str(item.get(col_etiqueta, "")).startswith(prefixo)
             ]
-            proximo_num = len(codigos_existentes) + 1
-            codigo_sugerido = f"{prefixo_sugerido}{proximo_num:03d}"
+            proximo = len(codigos) + 1
+            st.session_state["cad_etiq"] = f"{prefixo}{proximo:03d}"
 
-            etiqueta = st.text_input("Código / Etiqueta", value=codigo_sugerido, key="cad_etiq")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            # Seleção da categoria com disparador de atualização
+            categoria = st.selectbox(
+                "Categoria", 
+                ["Informática", "Veículo", "Mobiliário", "Eletrodoméstico", "Equipamento de Campo", "Outros"],
+                key="cad_cat",
+                on_change=atualizar_etiqueta
+            )
+
+            # Inicialização da etiqueta no session_state caso ainda não exista
+            if "cad_etiq" not in st.session_state:
+                prefixo_init = "VEI-" if categoria == "Veículo" else "PAT-"
+                cods_init = [str(item.get(col_etiqueta, "")) for item in patrimonio_db if str(item.get(col_etiqueta, "")).startswith(prefixo_init)]
+                st.session_state["cad_etiq"] = f"{prefixo_init}{len(cods_init) + 1:03d}"
+
+            etiqueta = st.text_input("Código / Etiqueta", key="cad_etiq")
             nome_bem = st.text_input("Nome do Bem", key="cad_nome")
-            
-            # Campo opcional de placa para veículos
-            placa = ""
-            if categoria == "Veículo":
-                placa = st.text_input("Placa do Veículo (Opcional - ex: ABC-1234 ou ABC1D23)", key="cad_placa").strip().upper()
 
         with col_b:
             cidade = st.selectbox("Cidade / Filial", lista_cidades, key="cad_cid")
             status = st.selectbox("Status Inicial", ["Disponível", "Em Uso", "Manutenção"], key="cad_stat")
             responsavel = st.text_input("Responsável Inicial", value="Equipe ISPN", key="cad_resp")
+
+        # Campo opcional de placa (aparece abaixo quando for Veículo)
+        placa = ""
+        if categoria == "Veículo":
+            placa = st.text_input("Placa do Veículo (ex: ABC-1234 ou ABC1D23)", key="cad_placa").strip().upper()
 
         if st.button("Cadastrar Patrimônio", type="primary", use_container_width=True):
             if not nome_bem:
@@ -103,7 +114,10 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                     cidades = st.session_state.get('cidades_db', {})
                     save_all_data(users_db, patrimonio_db, historico_db, cidades)
 
-                # Grava a mensagem antes de atualizar a página
+                # Limpa chave de etiqueta para recarregar o próximo no rerun
+                if "cad_etiq" in st.session_state:
+                    del st.session_state["cad_etiq"]
+
                 st.session_state.msg_sucesso = f"Feito! O item '{nome_bem}' ({etiqueta}) foi cadastrado com sucesso."
                 st.rerun()
 
@@ -125,7 +139,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                     e_nome = st.text_input("Nome do Bem", value=item_dados.get(col_nome, ""), key="e_nome")
                     
                     cat_atual = item_dados.get(col_categoria, "Outros")
-                    cats_lista = ["Veículo", "Informática", "Mobiliário", "Eletrodoméstico", "Equipamento de Campo", "Outros"]
+                    cats_lista = ["Informática", "Veículo", "Mobiliário", "Eletrodoméstico", "Equipamento de Campo", "Outros"]
                     cat_idx = cats_lista.index(cat_atual) if cat_atual in cats_lista else 0
                     
                     e_cat = st.selectbox("Categoria", cats_lista, index=cat_idx, key="e_cat")
