@@ -21,7 +21,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
     df = pd.DataFrame(patrimonio_db) if patrimonio_db else pd.DataFrame()
     
     col_etiqueta = 'etiqueta' if 'etiqueta' in df.columns else 'patrimonio'
-    col_nome = 'item' if 'item' in df.columns else ('nome' if 'nome' in df.columns else 'descricao')
+    col_nome = 'nome' if 'nome' in df.columns else ('item' if 'item' in df.columns else 'descricao')
     col_categoria = 'categoria' if 'categoria' in df.columns else 'tipo'
     col_local = 'localizacao' if 'localizacao' in df.columns else 'cidade'
     col_status = 'status' if 'status' in df.columns else 'estado'
@@ -29,6 +29,11 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
 
     # Lista de cidades
     lista_cidades = cidades_db.get("lista", ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]) if cidades_db else ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]
+
+    # Exibe mensagem de sucesso mantida após o rerun
+    if "msg_sucesso" in st.session_state:
+        st.success(st.session_state.msg_sucesso)
+        del st.session_state.msg_sucesso
 
     aba_sub = st.tabs(["➕ Novo Item", "✏️ Editar Item", "🗑️ Excluir Item (Admin)"])
 
@@ -40,7 +45,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
         proximo_num = len(patrimonio_db) + 1
         codigo_sugerido = f"PAT-{proximo_num:03d}"
 
-        # Usamos formulário, mas o campo de categoria fica fora do formulário para o Streamlit reagir ao vivo
         col_a, col_b = st.columns(2)
         with col_a:
             etiqueta = st.text_input("Código / Etiqueta", value=codigo_sugerido, key="cad_etiq")
@@ -51,7 +55,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                 key="cad_cat"
             )
             
-            # CAMPO DINÂMICO DE PLACA
+            # Campo dinâmico de placa
             placa = ""
             if categoria == "Veículo":
                 placa = st.text_input("Placa do Veículo (ex: ABC-1234 ou ABC1D23)", key="cad_placa").strip().upper()
@@ -67,12 +71,9 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
             elif categoria == "Veículo" and not placa:
                 st.warning("Por favor, insira a Placa do Veículo.")
             else:
-                # Se for veículo, concatena a placa ou salva no objeto
-                nome_final = f"{nome_bem} (Placa: {placa})" if (categoria == "Veículo" and placa) else nome_bem
-
                 novo_reg = {
                     col_etiqueta: etiqueta,
-                    col_nome: nome_final,
+                    col_nome: nome_bem,
                     col_categoria: categoria,
                     col_local: cidade,
                     col_status: status,
@@ -82,11 +83,11 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                 
                 patrimonio_db.append(novo_reg)
                 
-                # Registra no histórico
+                # Registra histórico
                 historico_db.append({
                     "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "etiqueta": etiqueta,
-                    "item": nome_final,
+                    "item": nome_bem,
                     "acao": "Cadastro Inicial",
                     "detalhes": f"Cadastrado em {cidade} por {st.session_state.get('username', 'admin')}"
                 })
@@ -97,7 +98,8 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                     cidades = st.session_state.get('cidades_db', {})
                     save_all_data(users_db, patrimonio_db, historico_db, cidades)
 
-                st.success(f"Feito! O item '{nome_final}' ({etiqueta}) foi cadastrado com sucesso.")
+                # Grava a mensagem antes de atualizar a página
+                st.session_state.msg_sucesso = f"Feito! O item '{nome_bem}' ({etiqueta}) foi cadastrado com sucesso."
                 st.rerun()
 
     # --- ABA 2: EDITAR ITEM ---
@@ -149,7 +151,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                     if e_cat == "Veículo":
                         patrimonio_db[idx]["placa"] = e_placa
 
-                    # Registro de histórico
                     historico_db.append({
                         "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "etiqueta": codigo_sel,
@@ -163,7 +164,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                         cidades = st.session_state.get('cidades_db', {})
                         save_all_data(users_db, patrimonio_db, historico_db, cidades)
 
-                    st.success("Dados atualizados com sucesso!")
+                    st.session_state.msg_sucesso = "Dados do item atualizados com sucesso!"
                     st.rerun()
 
     # --- ABA 3: EXCLUIR ITEM ---
@@ -184,7 +185,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                     cidades = st.session_state.get('cidades_db', {})
                     save_all_data(users_db, patrimonio_db, historico_db, cidades)
 
-                st.success(f"Item {codigo_del} excluído!")
+                st.session_state.msg_sucesso = f"Item {codigo_del} excluído com sucesso!"
                 st.rerun()
 
     st.divider()
