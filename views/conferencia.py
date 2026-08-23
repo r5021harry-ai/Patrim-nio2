@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import importlib
-import io
 import base64
 
 # Tenta importar bibliotecas de leitura de código de barras
@@ -53,10 +52,13 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
         return
 
     df = pd.DataFrame(patrimonio_db)
-    col_etiqueta = 'etiqueta' if 'etiqueta' in df.columns else 'patrimonio'
-    col_nome = 'nome' if 'nome' in df.columns else ('item' if 'item' in df.columns else 'descricao')
-    col_status = 'status' if 'status' in df.columns else 'estado'
-    col_local = 'localizacao' if 'localizacao' in df.columns else 'cidade'
+    
+    # Mapeamento dinâmico e seguro de todas as colunas
+    col_etiqueta = 'patrimonio' if 'patrimonio' in df.columns else ('etiqueta' if 'etiqueta' in df.columns else df.columns[0])
+    col_nome = 'descricao' if 'descricao' in df.columns else ('nome' if 'nome' in df.columns else ('item' if 'item' in df.columns else df.columns[1]))
+    col_status = 'estado' if 'estado' in df.columns else ('status' if 'status' in df.columns else df.columns[2])
+    col_local = 'cidade' if 'cidade' in df.columns else ('localizacao' if 'localizacao' in df.columns else df.columns[3])
+    col_responsavel = 'usuario' if 'usuario' in df.columns else ('responsavel' if 'responsavel' in df.columns else df.columns[4])
 
     # Se houver mensagem salva após salvar a conferência
     if "msg_conf_sucesso" in st.session_state:
@@ -105,7 +107,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
             c1, c2, c3 = st.columns(3)
             c1.metric("Localização Atual", item.get(col_local, "N/I"))
             c2.metric("Status Atual", item.get(col_status, "N/I"))
-            c3.metric("Responsável", item.get(col_responsavel, item.get('responsavel', 'Equipe ISPN')))
+            c3.metric("Responsável", item.get(col_responsavel, "Equipe ISPN"))
 
             st.markdown("---")
             st.markdown("### 📋 Formato de Vistoria / Auditoria")
@@ -143,7 +145,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                     patrimonio_db[idx]['ultima_vistoria'] = data_hora
                     patrimonio_db[idx]['vistoriado_por'] = usuario_auditor
 
-                    # Se enviou foto, podemos converter para Base64 para salvar/exibir
+                    # Converte foto capturada em Base64
                     foto_b64 = ""
                     if foto_vistoria:
                         foto_bytes = foto_vistoria.getvalue()
