@@ -1,9 +1,13 @@
 import json
 import os
 
-ARQUIVO_DE_USUARIOS = "users.json"
+USERS_FILE = "users.json"
 PATRIMONIO_FILE = "patrimonio.json"
-ARQUIVO_HISTORICO = "historico.json"
+HISTORICO_FILE = "historico.json"
+
+# Alias para compatibilidade de nomes
+ARQUIVO_DE_USUARIOS = USERS_FILE
+ARQUIVO_HISTORICO = HISTORICO_FILE
 
 def load_json(caminho_do_arquivo, padrao):
     if os.path.exists(caminho_do_arquivo):
@@ -22,13 +26,13 @@ def obter_patrimonio_inicial():
     return []
 
 def load_all_data():
-    usuarios = load_json(ARQUIVO_DE_USUARIOS, {"admin": {"senha": "123", "papel": "admin"}})
+    usuarios = load_json(USERS_FILE, {"admin": {"senha": "123", "papel": "admin"}})
     patrimonio = load_json(PATRIMONIO_FILE, obter_patrimonio_inicial())
-    historico = load_json(ARQUIVO_HISTORICO, [])
+    historico = load_json(HISTORICO_FILE, [])
     
     return usuarios, patrimonio, historico
 
-# Alias de compatibilidade
+# Compatibilidade com outras nomenclaturas de funções
 cargar_json = load_json
 salvar_json = save_json
 cargar_todos_os_dados = load_all_data
