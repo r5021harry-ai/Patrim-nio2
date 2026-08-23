@@ -2,6 +2,18 @@ import streamlit as st
 import pandas as pd
 import io
 import base64
+import importlib
+
+# Tenta importar salvamento do banco de dados
+try:
+    db_mod = importlib.import_module("banco de dados.db")
+except ModuleNotFoundError:
+    try:
+        db_mod = importlib.import_module("banco_dados.db")
+    except ModuleNotFoundError:
+        db_mod = importlib.import_module("database.db")
+
+save_all_data = getattr(db_mod, "save_all_data", getattr(db_mod, "guardar_todos_os_dados", None))
 
 def render_relatorios(patrimonio_db, historico_db, cidades_db=None):
     st.title("📑 Relatórios & Auditorias")
@@ -25,10 +37,10 @@ def render_relatorios(patrimonio_db, historico_db, cidades_db=None):
         "📜 Histórico Geral do Sistema"
     ])
 
-    # --- ABA 1: HISTÓRICO EXCLUSIVO DE VISTORIAS E FOTOS ---
+    # --- ABA 1: HISTÓRICO DE VISTORIAS E FOTOS ---
     with aba_rel[0]:
         st.subheader("📸 Painel Exclusivo de Vistorias Realizadas")
-        st.caption("Consulte aqui somente as auditorias registradas com seus respectivos estados e fotos de comprovação.")
+        st.caption("Consulte as auditorias registradas e faça a gestão das fotos e registros.")
 
         # Filtra apenas registros de vistoria
         vistorias = [h for h in (historico_db or []) if h.get('acao') in ["Auditoria / Vistoria", "Auditoria", "Vistoria"]]
@@ -36,10 +48,47 @@ def render_relatorios(patrimonio_db, historico_db, cidades_db=None):
         if not vistorias:
             st.info("Nenhuma vistoria ou auditoria foi realizada até o momento.")
         else:
-            st.markdown(f"**Total de vistorias realizadas:** `{len(vistorias)}`")
+            # --- PAINEL EXCLUSIVO DE ADMIN (EXCLUSÃO DE FOTOS / VISTORIAS) ---
+            if st.session_state.get("role") == "admin":
+                with st.expander("⚙️ Gerenciar / Excluir Vistorias e Fotos (Apenas Admin)", expanded=False):
+                    st.warning("⚠️ Atenção: Ações realizadas aqui afetam permanentemente o histórico do banco de dados.")
+                    
+                    opcoes_vistoria = [
+                        f"{v.get('data', 'Data N/I')} - {v.get('etiqueta', '')} ({v.get('item', 'Item')})" 
+                        for v in vistorias
+                    ]
+                    
+                    vistoria_sel = st.selectbox("Selecione a Vistoria:", opcoes_vistoria, key="sel_vistoria_adm")
+                    
+                    if vistoria_sel:
+                        idx_hist = next((i for i, h in enumerate(historico_db) if f"{h.get('data', 'Data N/I')} - {h.get('etiqueta', '')} ({h.get('item', 'Item')})" == vistoria_sel), None)
+                        
+                        if idx_hist is not None:
+                            c_adm1, c_adm2 = st.columns(2)
+                            
+                            with c_adm1:
+                                if st.button("🗑️ Apagar Apenas a Foto desta Vistoria", use_container_width=True):
+                                    historico_db[idx_hist]['foto'] = ""
+                                    if save_all_data:
+                                        users_db = st.session_state.get('users_db', {})
+                                        cidades = st.session_state.get('cidades_db', {})
+                                        save_all_data(users_db, patrimonio_db, historico_db, cidades)
+                                    st.success("Foto removida com sucesso para liberar espaço!")
+                                    st.rerun()
+
+                            with c_adm2:
+                                if st.button("🚨 Excluir Vistoria Completa", type="primary", use_container_width=True):
+                                    historico_db.pop(idx_hist)
+                                    if save_all_data:
+                                        users_db = st.session_state.get('users_db', {})
+                                        cidades = st.session_state.get('cidades_db', {})
+                                        save_all_data(users_db, patrimonio_db, historico_db, cidades)
+                                    st.success("Registro de vistoria excluído com sucesso!")
+                                    st.rerun()
+
             st.divider()
 
-            # Filtro rápido por código de patrimônio dentro das vistorias
+            # Filtro rápido por código de patrimônio
             codigos_vistoriados = sorted(list(set([v.get('etiqueta', '') for v in vistorias if v.get('etiqueta')])))
             filtro_cod = st.selectbox("Filtrar por Código de Patrimônio:", ["-- Exibir Todos --"] + codigos_vistoriados)
 
@@ -62,7 +111,6 @@ def render_relatorios(patrimonio_db, historico_db, cidades_db=None):
                     col_card_info, col_card_img = st.columns([2, 1])
 
                     with col_card_info:
-                        # Formata os detalhes para exibição limpa
                         if "|" in detalhes_v:
                             partes = detalhes_v.split("|")
                             for parte in partes:
@@ -78,7 +126,7 @@ def render_relatorios(patrimonio_db, historico_db, cidades_db=None):
                             except Exception:
                                 st.warning("Erro ao carregar a imagem desta vistoria.")
                         else:
-                            st.info("📷 Vistoria realizada sem anexar foto.")
+                            st.info("📷 Nenhuma foto anexada nesta vistoria.")
 
                     st.divider()
 
@@ -147,7 +195,6 @@ def render_relatorios(patrimonio_db, historico_db, cidades_db=None):
         st.subheader("📜 Histórico Geral de Modificações do Sistema")
         if historico_db:
             df_hist = pd.DataFrame(historico_db)
-            # Remove a coluna de foto base64 pesada da visualização em tabela simples
             if 'foto' in df_hist.columns:
                 df_hist = df_hist.drop(columns=['foto'])
             st.dataframe(df_hist, use_container_width=True)
