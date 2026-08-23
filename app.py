@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS CUSTOMIZADO (TABS NEUTRAS) ---
+# --- CSS CUSTOMIZADO (LIMPO E CORRIGIDO) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -51,7 +51,6 @@ st.markdown("""
         padding: 0px 8px;
     }
 
-    /* Aba Selecionada Apenas com Borda Inferior Discreta */
     .stTabs [aria-selected="true"] {
         color: #FFFFFF !important;
         font-weight: 600 !important;
@@ -138,17 +137,11 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-# --- TELA DE LOGIN ---
+# --- TELA DE LOGIN CORRIGIDA ---
 def login_screen():
     st.markdown("<br><br>", unsafe_allow_html=True)
-    _, col2, _ = st.columns([1.2, 1.6, 1.2])
+    _, col2, _ = st.columns([1, 2, 1])
     with col2:
-        st.markdown(
-            """
-            <div style="background: #141B21; border: 1px solid #2A363F; padding: 32px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-            """, unsafe_allow_html=True
-        )
-        
         if os.path.exists("logo.png"):
             img_c1, img_c2, img_c3 = st.columns([1, 2, 1])
             with img_c2:
@@ -156,7 +149,7 @@ def login_screen():
                 
         st.markdown(
             """
-            <div style="text-align: center; margin-top: 10px; margin-bottom: 25px;">
+            <div style="text-align: center; margin-top: 10px; margin-bottom: 20px;">
                 <h2 style="color: #FFFFFF; font-weight: 700; margin-bottom: 4px; font-size: 26px;">
                     Patrimônio ISPN
                 </h2>
@@ -179,8 +172,6 @@ def login_screen():
                     st.rerun()
                 else:
                     st.error("Usuário ou senha incorretos.")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login_screen()
