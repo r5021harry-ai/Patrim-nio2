@@ -146,7 +146,7 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     
     c.setFont("Helvetica-Bold", 6)
     c.setFillColorRGB(0, 0, 0)
-    nome_curto = (nome_item[:20] + '...') if len(nome_item) > 20 else nome_item
+    nome_curto = (nome_item[:20] + '...') if len(str(nome_item)) > 20 else str(nome_item)
     c.drawCentredString(largura / 2.0, altura - 9 * mm, nome_curto)
     
     barcode = code128.Code128(codigo, barHeight=11 * mm, barWidth=0.28 * mm)
@@ -280,20 +280,13 @@ else:
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
 
-    # --- ABA DE GESTÃO DE PATRIMÔNIO (COM NOTIFICAÇÃO DE "FEITO") ---
     with aba[1]:
-        # Exibe mensagem caso o cadastro tenha sido finalizado recentemente
-        if "cadastro_sucesso" in st.session_state and st.session_state.cadastro_sucesso:
-            st.success("✅ Feito! Patrimônio cadastrado com sucesso.")
-            st.toast("Feito! Registro cadastrado.", icon="🎉")
-            st.session_state.cadastro_sucesso = False
-
         try:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
 
-    # --- ABA DE ETIQUETAS ---
+    # --- ABA DE ETIQUETAS COM TRATAMENTO SEGURO DE ERRO ---
     with aba[2]:
         st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
         
@@ -315,46 +308,49 @@ else:
                 opcoes_itens = df_patrimonio[col_etiqueta].astype(str) + " - " + df_patrimonio[col_nome].astype(str)
                 item_selecionado = st.selectbox("Selecione o Patrimônio:", opcoes_itens)
             
-            if item_selecionado:
+            if item_selecionado and isinstance(item_selecionado, str) and " - " in item_selecionado:
                 etiqueta_cod = item_selecionado.split(" - ")[0]
-                item_dados = df_patrimonio[df_patrimonio[col_etiqueta].astype(str) == etiqueta_cod].iloc[0]
-                item_titulo = str(item_dados[col_nome])
+                item_dados_lista = df_patrimonio[df_patrimonio[col_etiqueta].astype(str) == etiqueta_cod]
                 
-                barcode_url = f"https://barcode.tec-it.com/barcode.ashx?data={urllib.parse.quote(etiqueta_cod)}&code=Code128&translate-esc=false"
-                
-                st.markdown("---")
-                c_etiqueta, c_info = st.columns([1, 2])
-                
-                with c_etiqueta:
-                    st.markdown(
-                        f"""
-                        <div class="etiqueta-card">
-                            <h3 style="margin: 0; color: #2E7D32; font-size: 18px;">PATRIMÔNIO ISPN</h3>
-                            <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_titulo}</p>
-                            <img src="{barcode_url}" alt="Código de Barras" style="width: 80%; margin: 10px 0;">
-                            <p style="margin: 0; font-size: 12px; color: #555;">Etiqueta: {etiqueta_cod}</p>
-                        </div>
-                        """, 
-                        unsafe_allow_html=True
-                    )
+                if not item_dados_lista.empty:
+                    item_dados = item_dados_lista.iloc[0]
+                    item_titulo = str(item_dados[col_nome])
+                    
+                    barcode_url = f"https://barcode.tec-it.com/barcode.ashx?data={urllib.parse.quote(etiqueta_cod)}&code=Code128&translate-esc=false"
+                    
+                    st.markdown("---")
+                    c_etiqueta, c_info = st.columns([1, 2])
+                    
+                    with c_etiqueta:
+                        st.markdown(
+                            f"""
+                            <div class="etiqueta-card">
+                                <h3 style="margin: 0; color: #2E7D32; font-size: 18px;">PATRIMÔNIO ISPN</h3>
+                                <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_titulo}</p>
+                                <img src="{barcode_url}" alt="Código de Barras" style="width: 80%; margin: 10px 0;">
+                                <p style="margin: 0; font-size: 12px; color: #555;">Etiqueta: {etiqueta_cod}</p>
+                            </div>
+                            """, 
+                            unsafe_allow_html=True
+                        )
 
-                    pdf_bytes = gerar_pdf_etiqueta(etiqueta_cod, item_titulo)
+                        pdf_bytes = gerar_pdf_etiqueta(etiqueta_cod, item_titulo)
 
-                    st.download_button(
-                        label="📄 Baixar Etiqueta em PDF (50x30mm)",
-                        data=pdf_bytes,
-                        file_name=f"etiqueta_{etiqueta_cod}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True,
-                        type="primary"
-                    )
+                        st.download_button(
+                            label="📄 Baixar Etiqueta em PDF (50x30mm)",
+                            data=pdf_bytes,
+                            file_name=f"etiqueta_{etiqueta_cod}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True,
+                            type="primary"
+                        )
 
-                with c_info:
-                    st.markdown(f"**Código:** `{etiqueta_cod}`")
-                    st.markdown(f"**Item:** {item_titulo}")
-                    for key, val in item_dados.items():
-                        if key not in [col_etiqueta, col_nome]:
-                            st.markdown(f"**{str(key).title()}:** {val}")
+                    with c_info:
+                        st.markdown(f"**Código:** `{etiqueta_cod}`")
+                        st.markdown(f"**Item:** {item_titulo}")
+                        for key, val in item_dados.items():
+                            if key not in [col_etiqueta, col_nome]:
+                                st.markdown(f"**{str(key).title()}:** {val}")
         else:
             st.info("Nenhum patrimônio disponível no banco de dados para gerar etiquetas.")
 
