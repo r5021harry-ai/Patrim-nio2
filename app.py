@@ -10,8 +10,13 @@ st.set_page_config(page_title="Patrimônio ISPN", page_icon="📦", layout="wide
 
 ISPN_LOGO_URL = "https://ispn.org.br/wp-content/uploads/2020/01/logo-ispn-30anos.png"
 
-# Carregar dados
-users_db, patrimonio_db, historico_db = load_all_data()
+# Carregar dados (suportando a presença ou ausência de cidades_db)
+data = load_all_data()
+if len(data) == 4:
+    users_db, patrimonio_db, historico_db, cidades_db = data
+else:
+    users_db, patrimonio_db, historico_db = data
+    cidades_db = {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
 
 if "users_db" not in st.session_state:
     st.session_state.users_db = users_db
@@ -19,6 +24,8 @@ if "patrimonio_db" not in st.session_state:
     st.session_state.patrimonio_db = patrimonio_db
 if "historico_db" not in st.session_state:
     st.session_state.historico_db = historico_db
+if "cidades_db" not in st.session_state:
+    st.session_state.cidades_db = cidades_db
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -45,7 +52,7 @@ def login_screen():
         with st.form("login_form"):
             u_input = st.text_input("Usuário")
             p_input = st.text_input("Senha", type="password")
-            if st.form_submit_button("Entrar no Sistema", width="stretch"):
+            if st.form_submit_button("Entrar no Sistema", use_container_width=True):
                 ok, role = authenticate_user(st.session_state.users_db, u_input, p_input)
                 if ok:
                     st.session_state.logged_in = True
@@ -62,7 +69,7 @@ else:
     st.sidebar.image(ISPN_LOGO_URL, width=140)
     st.sidebar.markdown("### Patrimônio ISPN")
     st.sidebar.markdown(f"👤 Logado como: **{st.session_state.username}** (`{st.session_state.role.upper()}`)")
-    if st.sidebar.button("🚪 Sair", width="stretch"):
+    if st.sidebar.button("🚪 Sair", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.session_state.role = ""
@@ -107,6 +114,6 @@ else:
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
     with aba[1]:
-        render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
+        render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
     with aba[2]:
-        render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db)
+        render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
