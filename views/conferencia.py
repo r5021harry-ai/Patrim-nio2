@@ -62,8 +62,46 @@ def ler_codigo_imagem(image_file):
         pass
     return None
 
+def formatar_data_vistoria_br(data_orig):
+    """
+    Trata e converte qualquer formato de data/hora salvo no banco 
+    para o fuso horário oficial do Brasil (America/Sao_Paulo).
+    """
+    if not data_orig:
+        return "N/A"
+    
+    data_str = str(data_orig).strip()
+    
+    try:
+        # Se já tiver "às", apenas retorna se for válido
+        if "às" in data_str:
+            return data_str
+
+        # Tenta converter ISO / UTC string
+        dt_obj = None
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+            try:
+                dt_obj = datetime.strptime(data_str.split(".")[0], fmt)
+                break
+            except ValueError:
+                pass
+
+        if dt_obj:
+            # Se não tem timezone, assume UTC ou ajusta fuso BR caso necessário
+            if dt_obj.tzinfo is None:
+                # Converte para fuso de SP
+                dt_utc = pytz.utc.localize(dt_obj)
+                dt_br = dt_utc.astimezone(TZ_BR)
+            else:
+                dt_br = dt_obj.astimezone(TZ_BR)
+            return dt_br.strftime("%d/%m/%Y às %H:%M:%S")
+    except Exception:
+        pass
+        
+    return data_str
+
 def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_relatorio="Relatório de Auditoria e Vistorias"):
-    """Gera um PDF formatado contendo dados e fotos das vistorias mantendo proporções."""
+    """Gera um PDF formatado contendo dados e fotos das vistorias mantendo proporções e fuso correto."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
@@ -94,17 +132,11 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
         if item_bd:
             categoria = item_bd.get("categoria", item_bd.get("tipo", "Não informada"))
 
-        # Pega a data e hora EXATAS do momento da vistoria
-        data_orig = vist.get('data', 'N/A')
-        data_formatada = str(data_orig)
-        if "às" not in data_formatada and data_formatada != 'N/A':
-            try:
-                dt_obj = datetime.strptime(data_formatada.split(".")[0], "%Y-%m-%d %H:%M:%S")
-                data_formatada = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
-            except Exception:
-                pass
+        # Pega a data e hora EXATAS da VISTORIA e converte pro fuso do Brasil
+        data_orig = vist.get('data', '')
+        data_formatada = formatar_data_vistoria_br(data_orig)
 
-        # Limpa emojis para evitar caracteres corrompidos
+        # Limpa emojis para evitar caracteres corrompidos no PDF
         estado = dict_detalhes.get('Estado', 'N/I')
         estado_limpo = estado.replace("🟢", "").replace("🟡", "").replace("🔴", "").replace("⚠️", "").strip()
 
@@ -121,7 +153,7 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
         """
         p_info = Paragraph(info_text, text_style)
 
-        # Trata a foto proporcionalmente (sem esticar ou deformar)
+        # Trata a foto proporcionalmente
         img_element = Paragraph("<i>Sem foto de comprovação</i>", text_style)
         foto = vist.get("foto") or vist.get("imagem")
         
@@ -386,13 +418,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                         chave, valor = p.split(":", 1)
                         dict_detalhes[chave.strip()] = valor.strip()
 
-                data_tela = vist.get('data', 'N/A')
-                try:
-                    if "às" not in str(data_tela) and data_tela != 'N/A':
-                        dt_obj = datetime.strptime(str(data_tela).split(".")[0], "%Y-%m-%d %H:%M:%S")
-                        data_tela = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
-                except Exception:
-                    pass
+                data_tela = formatar_data_vistoria_br(vist.get('data', 'N/A'))
 
                 with col_info:
                     st.markdown(f"### 📦 {vist.get('item', 'Item')} — **Código:** `{vist.get('etiqueta', 'N/A')}`")
