@@ -5,34 +5,21 @@ USERS_FILE = "users.json"
 PATRIMONIO_FILE = "patrimonio.json"
 HISTORICO_FILE = "historico.json"
 
-# Alias para compatibilidade de nomes
-ARQUIVO_DE_USUARIOS = USERS_FILE
-ARQUIVO_HISTORICO = HISTORICO_FILE
-
-def load_json(caminho_do_arquivo, padrao):
-    if os.path.exists(caminho_do_arquivo):
+def load_json(caminho, padrao):
+    if os.path.exists(caminho):
         try:
-            with open(caminho_do_arquivo, "r", encoding="utf-8") as f:
+            with open(caminho, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             pass
     return padrao
 
-def save_json(caminho_do_arquivo, dados):
-    with open(caminho_do_arquivo, "w", encoding="utf-8") as f:
+def save_json(caminho, dados):
+    with open(caminho, "w", encoding="utf-8") as f:
         json.dump(dados, f, indent=4, ensure_ascii=False)
-
-def obter_patrimonio_inicial():
-    return []
 
 def load_all_data():
     usuarios = load_json(USERS_FILE, {"admin": {"senha": "123", "papel": "admin"}})
-    patrimonio = load_json(PATRIMONIO_FILE, obter_patrimonio_inicial())
+    patrimonio = load_json(PATRIMONIO_FILE, [])
     historico = load_json(HISTORICO_FILE, [])
-    
     return usuarios, patrimonio, historico
-
-# Compatibilidade com outras nomenclaturas de funções
-cargar_json = load_json
-salvar_json = save_json
-cargar_todos_os_dados = load_all_data
