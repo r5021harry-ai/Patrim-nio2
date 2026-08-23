@@ -1,25 +1,38 @@
 import json
 import os
 
-USERS_FILE = "users.json"
-PATRIMONIO_FILE = "patrimonio.json"
-HISTORICO_FILE = "historico.json"
-
-def load_json(caminho, padrao):
-    if os.path.exists(caminho):
-        try:
-            with open(caminho, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return padrao
-
-def save_json(caminho, dados):
-    with open(caminho, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=4, ensure_ascii=False)
+# Arquivo JSON que funcionará como banco de dados local
+DB_FILE = "dados_patrimonio.json"
 
 def load_all_data():
-    usuarios = load_json(USERS_FILE, {"admin": {"senha": "123", "papel": "admin"}})
-    patrimonio = load_json(PATRIMONIO_FILE, [])
-    historico = load_json(HISTORICO_FILE, [])
-    return usuarios, patrimonio, historico
+    """Carrega os dados salvos do arquivo JSON."""
+    if not os.path.exists(DB_FILE):
+        return {}, [], [], []
+    try:
+        with open(DB_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return (
+                data.get("users", {}),
+                data.get("patrimonio", []),
+                data.get("historico", []),
+                data.get("cidades", [])
+            )
+    except Exception as e:
+        print(f"Erro ao carregar banco de dados: {e}")
+        return {}, [], [], []
+
+def save_all_data(users, patrimonio, historico, cidades):
+    """Grava imediatamente as alterações no arquivo JSON."""
+    data = {
+        "users": users,
+        "patrimonio": patrimonio,
+        "historico": historico,
+        "cidades": cidades
+    }
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        return True
+    except Exception as e:
+        print(f"Erro ao salvar no banco de dados: {e}")
+        return False
