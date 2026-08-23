@@ -4,9 +4,6 @@ import pandas as pd
 import importlib
 import urllib.parse
 import io
-import smtplib
-import secrets
-from email.mime.text import MIMEText
 
 # Importações para geração de PDF
 from reportlab.lib.units import mm
@@ -188,39 +185,6 @@ render_gestao = gest_mod.render_gestao
 render_relatorios = rel_mod.render_relatorios
 render_conferencia = conf_mod.render_conferencia
 
-# --- FUNÇÃO DE ENVIO DE E-MAIL ---
-def enviar_email_recuperacao(email_destino, nova_senha):
-    """Envia e-mail com a nova senha provisória."""
-    smtp_server = "smtp.gmail.com"
-    port = 587
-    sender_email = "seu_email_sistema@gmail.com"  # Configure o e-mail do remetente
-    sender_password = "sua_senha_de_app"          # Configure a senha de app
-
-    mensagem = f"""\
-Olá,
-
-Sua senha do aplicativo Patrimônio ISPN foi redefinida.
-
-Sua nova senha provisória é: {nova_senha}
-
-Atenciosamente,
-Equipe ISPN
-"""
-    msg = MIMEText(mensagem)
-    msg["Subject"] = "Recuperação de Senha - Patrimônio ISPN"
-    msg["From"] = sender_email
-    msg["To"] = email_destino
-
-    try:
-        server = smtplib.SMTP(smtp_server, port)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
-        return True, "E-mail enviado!"
-    except Exception as e:
-        return False, str(e)
-
 # --- GERAR PDF DA ETIQUETA ---
 def gerar_pdf_etiqueta(codigo, nome_item):
     buffer = io.BytesIO()
@@ -285,10 +249,7 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
-if "login_mode" not in st.session_state:
-    st.session_state.login_mode = "login"
-
-# --- TELA DE LOGIN & RECUPERAÇÃO DE SENHA ---
+# --- TELA DE LOGIN ---
 def login_screen():
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 2, 1])
@@ -310,62 +271,21 @@ def login_screen():
             unsafe_allow_html=True
         )
         
-        # MODO LOGIN PRINCIPAL
-        if st.session_state.login_mode == "login":
-            with st.form("login_form"):
-                u_input = st.text_input("Usuário")
-                p_input = st.text_input("Senha", type="password")
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                submitted = st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary")
-                if submitted:
-                    ok, role = authenticate_user(st.session_state.users_db, u_input, p_input)
-                    if ok:
-                        st.session_state.logged_in = True
-                        st.session_state.username = u_input
-                        st.session_state.role = role
-                        st.rerun()
-                    else:
-                        st.error("Usuário ou senha incorretos.")
+        with st.form("login_form"):
+            u_input = st.text_input("Usuário")
+            p_input = st.text_input("Senha", type="password")
+            st.markdown("<br>", unsafe_allow_html=True)
             
-            # Botão "Esqueci a Senha"
-            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-            if st.button("Esqueci a Senha", use_container_width=True, type="primary"):
-                st.session_state.login_mode = "recuperar"
-                st.rerun()
-
-        # MODO RECUPERAÇÃO DE SENHA
-        else:
-            st.markdown("<p style='font-size: 15px; font-weight: 700; color: #15803D; text-align: center;'>Recuperação de Senha</p>", unsafe_allow_html=True)
-            st.markdown("<p style='font-size: 13px; color: #64748B; text-align: center;'>Insira seu e-mail corporativo para solicitar uma nova senha.</p>", unsafe_allow_html=True)
-            
-            with st.form("form_recuperacao"):
-                email_input = st.text_input("E-mail (@ispn.org.br)")
-                
-                if st.form_submit_button("Solicitar Senha", use_container_width=True, type="primary"):
-                    email_clean = email_input.strip().lower()
-                    if not email_clean.endswith("@ispn.org.br"):
-                        st.error("Apenas e-mails com domínio @ispn.org.br são aceitos.")
-                    else:
-                        user_candidate = email_clean.split("@")[0]
-                        if user_candidate in st.session_state.users_db:
-                            nova_senha = secrets.token_hex(4)
-                            update_password(st.session_state.users_db, user_candidate, nova_senha)
-                            if save_all_data:
-                                save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
-                            
-                            ok_mail, msg_mail = enviar_email_recuperacao(email_clean, nova_senha)
-                            if ok_mail:
-                                st.success("Nova senha enviada para seu e-mail!")
-                            else:
-                                st.warning(f"Senha gerada com sucesso! (Aviso do e-mail: {msg_mail})")
-                        else:
-                            st.error("Usuário não cadastrado no sistema.")
-
-            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-            if st.button("⬅️ Voltar para o Login", use_container_width=True):
-                st.session_state.login_mode = "login"
-                st.rerun()
+            submitted = st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary")
+            if submitted:
+                ok, role = authenticate_user(st.session_state.users_db, u_input, p_input)
+                if ok:
+                    st.session_state.logged_in = True
+                    st.session_state.username = u_input
+                    st.session_state.role = role
+                    st.rerun()
+                else:
+                    st.error("Usuário ou senha incorretos.")
 
 if not st.session_state.logged_in:
     login_screen()
@@ -390,7 +310,6 @@ else:
         
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.logged_in = False
-            st.session_state.login_mode = "login"
             st.rerun()
 
         st.divider()
