@@ -3,6 +3,9 @@ import os
 import pandas as pd
 import importlib
 import urllib.parse
+import io
+import requests
+from PIL import Image, ImageDraw, ImageFont
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -34,7 +37,7 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    /* Estilização das Abas (Tabs) Sem Fundo Verde */
+    /* Estilização das Abas (Tabs) */
     .stTabs [data-baseweb="tab-list"] {
         gap: 16px;
         background-color: transparent;
@@ -257,14 +260,13 @@ else:
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
 
-    # --- ABA DE ETIQUETAS COM DETECÇÃO SEGURA DE COLUNAS ---
+    # --- ABA DE ETIQUETAS COM GERADOR E DOWNLOAD DE IMAGEM ---
     with aba[2]:
         st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
         
         df_patrimonio = pd.DataFrame(st.session_state.patrimonio_db)
         
         if not df_patrimonio.empty:
-            # Detecção inteligente de colunas
             col_etiqueta = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else (
                 'patrimonio' if 'patrimonio' in df_patrimonio.columns else df_patrimonio.columns[0]
             )
@@ -283,8 +285,9 @@ else:
             if item_selecionado:
                 etiqueta_cod = item_selecionado.split(" - ")[0]
                 item_dados = df_patrimonio[df_patrimonio[col_etiqueta].astype(str) == etiqueta_cod].iloc[0]
+                item_titulo = str(item_dados[col_nome])
                 
-                # URL de código de barras
+                # URL de geração do código de barras
                 barcode_url = f"https://barcode.tec-it.com/barcode.ashx?data={urllib.parse.quote(etiqueta_cod)}&code=Code128&translate-esc=false"
                 
                 st.markdown("---")
@@ -295,17 +298,55 @@ else:
                         f"""
                         <div class="etiqueta-card">
                             <h3 style="margin: 0; color: #2E7D32; font-size: 18px;">PATRIMÔNIO ISPN</h3>
-                            <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_dados[col_nome]}</p>
+                            <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_titulo}</p>
                             <img src="{barcode_url}" alt="Código de Barras" style="width: 80%; margin: 10px 0;">
                             <p style="margin: 0; font-size: 12px; color: #555;">Etiqueta: {etiqueta_cod}</p>
                         </div>
                         """, 
                         unsafe_allow_html=True
                     )
-                
+
+                    # --- GERADOR DA IMAGEM PARA DOWNLOAD (600x350 px) ---
+                    try:
+                        # Baixa o código de barras
+                        res = requests.get(barcode_url, timeout=5)
+                        bc_img = Image.open(io.BytesIO(res.content)).convert("RGBA")
+
+                        # Cria o canvas da etiqueta (600x350 pixels)
+                        label_img = Image.new("RGBA", (600, 350), "white")
+                        draw = ImageDraw.Draw(label_img)
+
+                        # Desenha cabeçalho e textos
+                        draw.text((300, 30), "PATRIMÔNIO ISPN", fill="#2E7D32", anchor="mm")
+                        draw.text((300, 75), item_titulo, fill="black", anchor="mm")
+
+                        # Redimensiona e cola o código de barras no centro
+                        bc_resized = bc_img.resize((480, 180))
+                        label_img.paste(bc_resized, (60, 105), mask=bc_resized)
+
+                        # Rodapé com o código da etiqueta
+                        draw.text((300, 310), f"Etiqueta: {etiqueta_cod}", fill="#555555", anchor="mm")
+
+                        # Converte para PNG em memória
+                        img_byte_arr = io.BytesIO()
+                        label_img.convert("RGB").save(img_byte_arr, format='PNG')
+                        img_bytes = img_byte_arr.getvalue()
+
+                        # Botão de download
+                        st.download_button(
+                            label="📥 Baixar Etiqueta (PNG Pequena)",
+                            data=img_bytes,
+                            file_name=f"etiqueta_{etiqueta_cod}.png",
+                            mime="image/png",
+                            use_container_width=True,
+                            type="primary"
+                        )
+                    except Exception as e:
+                        st.warning("Conecte-se à internet para habilitar o download em PNG.")
+
                 with c_info:
                     st.markdown(f"**Código:** `{etiqueta_cod}`")
-                    st.markdown(f"**Item:** {item_dados[col_nome]}")
+                    st.markdown(f"**Item:** {item_titulo}")
                     for key, val in item_dados.items():
                         if key not in [col_etiqueta, col_nome]:
                             st.markdown(f"**{str(key).title()}:** {val}")
