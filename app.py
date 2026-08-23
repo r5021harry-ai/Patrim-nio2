@@ -5,10 +5,9 @@ import importlib
 import urllib.parse
 import io
 
-# Importações para gerar o PDF da etiqueta
+# Importações para geração de PDF
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
-from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode import code128
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -133,7 +132,7 @@ render_dashboard = dash_mod.render_dashboard
 render_gestao = gest_mod.render_gestao
 render_relatorios = rel_mod.render_relatorios
 
-# --- FUNÇÃO PARA GERAR O PDF DA ETIQUETA (50mm x 30mm) ---
+# --- FUNÇÃO PARA GERAR O PDF DA ETIQUETA ---
 def gerar_pdf_etiqueta(codigo, nome_item):
     buffer = io.BytesIO()
     largura = 50 * mm
@@ -141,22 +140,18 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     
     c = canvas.Canvas(buffer, pagesize=(largura, altura))
     
-    # Cabeçalho
     c.setFont("Helvetica-Bold", 7)
-    c.setFillColorRGB(0.18, 0.49, 0.20) # Verde ISPN
+    c.setFillColorRGB(0.18, 0.49, 0.20)
     c.drawCentredString(largura / 2.0, altura - 5 * mm, "PATRIMÔNIO ISPN")
     
-    # Nome do Item
     c.setFont("Helvetica-Bold", 6)
     c.setFillColorRGB(0, 0, 0)
     nome_curto = (nome_item[:20] + '...') if len(nome_item) > 20 else nome_item
     c.drawCentredString(largura / 2.0, altura - 9 * mm, nome_curto)
     
-    # Código de Barras (Code128)
     barcode = code128.Code128(codigo, barHeight=11 * mm, barWidth=0.28 * mm)
     barcode.drawOn(c, (largura - barcode.width) / 2.0, 7 * mm)
     
-    # Código numérico/texto abaixo da barra
     c.setFont("Helvetica", 6)
     c.drawCentredString(largura / 2.0, 3 * mm, f"Etiqueta: {codigo}")
     
@@ -285,13 +280,20 @@ else:
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
 
+    # --- ABA DE GESTÃO DE PATRIMÔNIO (COM NOTIFICAÇÃO DE "FEITO") ---
     with aba[1]:
+        # Exibe mensagem caso o cadastro tenha sido finalizado recentemente
+        if "cadastro_sucesso" in st.session_state and st.session_state.cadastro_sucesso:
+            st.success("✅ Feito! Patrimônio cadastrado com sucesso.")
+            st.toast("Feito! Registro cadastrado.", icon="🎉")
+            st.session_state.cadastro_sucesso = False
+
         try:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
 
-    # --- ABA DE ETIQUETAS COM BOTÃO DE DOWNLOAD PDF ---
+    # --- ABA DE ETIQUETAS ---
     with aba[2]:
         st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
         
@@ -324,7 +326,6 @@ else:
                 c_etiqueta, c_info = st.columns([1, 2])
                 
                 with c_etiqueta:
-                    # Visualização da Etiqueta
                     st.markdown(
                         f"""
                         <div class="etiqueta-card">
@@ -337,10 +338,8 @@ else:
                         unsafe_allow_html=True
                     )
 
-                    # Geração do Arquivo PDF (Tamanho exato 50mm x 30mm)
                     pdf_bytes = gerar_pdf_etiqueta(etiqueta_cod, item_titulo)
 
-                    # Botão de Download do PDF
                     st.download_button(
                         label="📄 Baixar Etiqueta em PDF (50x30mm)",
                         data=pdf_bytes,
