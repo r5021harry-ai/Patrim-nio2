@@ -193,8 +193,8 @@ def enviar_email_recuperacao(email_destino, nova_senha):
     """Envia e-mail com a nova senha provisória."""
     smtp_server = "smtp.gmail.com"
     port = 587
-    sender_email = "seu_email_sistema@gmail.com"  # Configure o e-mail de envio
-    sender_password = "sua_senha_de_app"          # Configure a senha de aplicativo
+    sender_email = "seu_email_sistema@gmail.com"  # Configure o e-mail do remetente
+    sender_password = "sua_senha_de_app"          # Configure a senha de app
 
     mensagem = f"""\
 Olá,
@@ -249,7 +249,7 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- CARREGAMENTO DE DADOS ---
+# --- CARREGAMENTO DE DADOS E GARANTIA DE ADMIN ---
 if "patrimonio_db" not in st.session_state:
     if load_all_data:
         data = load_all_data()
@@ -262,6 +262,15 @@ if "patrimonio_db" not in st.session_state:
             users_db, patrimonio_db, historico_db, cidades_db = {}, [], [], {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
     else:
         users_db, patrimonio_db, historico_db, cidades_db = {}, [], [], {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
+
+    # Garantia: Garante admin/123 para primeiro login ou reset de emergência
+    if "admin" not in users_db or not users_db["admin"]:
+        users_db["admin"] = {
+            "password": auth_mod.hash_password("123"),
+            "role": "admin"
+        }
+        if save_all_data:
+            save_all_data(users_db, patrimonio_db, historico_db, cidades_db)
 
     st.session_state.users_db = users_db
     st.session_state.patrimonio_db = patrimonio_db
@@ -316,14 +325,15 @@ def login_screen():
                     else:
                         st.error("Usuário ou senha incorretos.")
             
-            # Botão Esqueci a Senha abaixo, no mesmo estilo
+            # Botão "Esqueci a Senha" logo abaixo do formulário
+            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             if st.button("Esqueci a Senha", use_container_width=True, type="primary"):
                 st.session_state.login_mode = "recuperar"
                 st.rerun()
 
         # MODO RECUPERAÇÃO DE SENHA
         else:
-            st.markdown("<p style='font-size: 14px; font-weight: 600; color: #15803D; text-align: center;'>Recuperação de Senha</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 15px; font-weight: 700; color: #15803D; text-align: center;'>Recuperação de Senha</p>", unsafe_allow_html=True)
             st.markdown("<p style='font-size: 13px; color: #64748B; text-align: center;'>Insira seu e-mail corporativo para solicitar uma nova senha.</p>", unsafe_allow_html=True)
             
             with st.form("form_recuperacao"):
@@ -345,10 +355,11 @@ def login_screen():
                             if ok_mail:
                                 st.success("Nova senha enviada para seu e-mail!")
                             else:
-                                st.warning(f"Senha atualizada no sistema, mas houve erro no envio do e-mail: {msg_mail}")
+                                st.warning(f"Senha gerada com sucesso! (Aviso do e-mail: {msg_mail})")
                         else:
                             st.error("Usuário não cadastrado no sistema.")
 
+            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             if st.button("⬅️ Voltar para o Login", use_container_width=True):
                 st.session_state.login_mode = "login"
                 st.rerun()
