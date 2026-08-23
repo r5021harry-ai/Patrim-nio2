@@ -13,6 +13,7 @@ except ModuleNotFoundError:
         db_mod = importlib.import_module("database.db")
 
 load_all_data = getattr(db_mod, "load_all_data", getattr(db_mod, "cargar_todos_os_dados", None))
+save_all_data = getattr(db_mod, "save_all_data", getattr(db_mod, "guardar_todos_os_dados", None))
 
 # Importação inteligente de Serviços
 try:
@@ -121,6 +122,7 @@ else:
     # Painel Admin
     if st.session_state.role == "admin":
         st.sidebar.subheader("⚙️ Configurações Admin")
+        
         with st.sidebar.expander("🔑 Alterar minha senha"):
             with st.form("form_pass"):
                 n_pass = st.text_input("Nova Senha", type="password")
@@ -142,19 +144,25 @@ else:
                         if ok: st.success(msg)
                         else: st.error(msg)
 
+        with st.sidebar.expander("🗑️ Gerenciar Dados"):
+            if st.button("Limpar Histórico Geral", type="primary", use_container_width=True):
+                st.session_state.historico_db = []
+                if save_all_data:
+                    save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, [], st.session_state.cidades_db)
+                st.success("Histórico limpo com sucesso!")
+                st.rerun()
+
     # Navegação do App
     aba = st.tabs(["📊 Dashboard", "➕ Cadastrar & Editar Patrimônio", "📑 Relatórios & Importação"])
     
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
     with aba[1]:
-        # Chama a gestão com suporte flexível a parâmetros
         try:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
     with aba[2]:
-        # Chama os relatórios com tratamento para aceitar 2 ou 3 parâmetros sem dar erro
         try:
             render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
