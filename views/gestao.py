@@ -1,82 +1,136 @@
 import streamlit as st
 import pandas as pd
-from services.patrimonio import add_patrimonio, update_patrimonio, delete_patrimonio
+import importlib
 
-def render_gestao(patrimonio_db, historico_db, cidades_db):
-    st.markdown("<h2 style='color: #1b4332;'>📦 Gestão de Bens Patrimoniais</h2>", unsafe_allow_html=True)
-    df = pd.DataFrame(patrimonio_db)
+# Tenta carregar a função de salvar dados do banco
+try:
+    db_mod = importlib.import_module("banco de dados.db")
+except ModuleNotFoundError:
+    try:
+        db_mod = importlib.import_module("banco_dados.db")
+    except ModuleNotFoundError:
+        db_mod = importlib.import_module("database.db")
+
+save_all_data = getattr(db_mod, "save_all_data", getattr(db_mod, "guardar_todos_os_dados", None))
+
+def render_gestao(patrimonio_db, historico_db, cidades_db=None):
+    st.title("📦 Gestão de Bens Patrimoniais")
     
-    lista_cidades = cidades_db.get("lista", ["Santa Inês – MA"])
-    cidade_padrao = cidades_db.get("padrao", "Santa Inês – MA")
-    idx_padrao = lista_cidades.index(cidade_padrao) if cidade_padrao in lista_cidades else 0
-
-    # Cria a terceira aba de exclusão apenas para Administradores
-    if st.session_state.get("role") == "admin":
-        tab1, tab2, tab3 = st.tabs(["➕ Novo Item", "✏️ Editar Item", "🗑️ Excluir Item (Admin)"])
-    else:
-        tab1, tab2 = st.tabs(["➕ Novo Item", "✏️ Editar Item"])
-        tab3 = None
-
-    with tab1:
+    aba_sub = st.tabs(["➕ Novo Item", "✏️ Editar Item", "🗑️ Excluir Item (Admin)"])
+    
+    # --- ABA 1: CADASTRAR NOVO ITEM ---
+    with aba_sub[0]:
         st.subheader("➕ Cadastrar Novo Item")
-        with st.form("form_novo"):
-            etiq = st.text_input("Código / Etiqueta", value=f"PAT-00{len(patrimonio_db)+1}")
-            nome = st.text_input("Nome do Bem")
-            cat = st.selectbox("Categoria", ["Veículo", "Imóvel", "Móveis", "Informática", "Eletrodomésticos"])
-            loc = st.selectbox("Cidade / Filial", options=lista_cidades, index=idx_padrao)
-            stat = st.selectbox("Status Inicial", ["Disponível", "Em Uso", "Em Manutenção"])
-            resp = st.text_input("Responsável Inicial", value="Equipe ISPN")
-            
-            if st.form_submit_button("Cadastrar Patrimônio", use_container_width=True):
-                if etiq and nome:
-                    ok, msg = add_patrimonio(patrimonio_db, historico_db, etiq, nome, cat, loc, stat, resp)
-                    if ok:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                else:
-                    st.warning("Preencha a etiqueta e o nome do bem.")
+        
+        cidades_lista = cidades_db.get("lista", ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]) if cidades_db else ["Santa Inês – MA"]
+        
+        # Sugestão automática de código
+        proximo_id = len(patrimonio_db) + 1
+        codigo_sugerido = f"PAT-{proximo_id:03d}"
 
-    with tab2:
-        st.subheader("✏️ Editar Item Existente")
-        if not df.empty:
-            item_sel = st.selectbox("Selecione o Item para Editar", [f"{i['etiqueta']} - {i['nome']}" for i in patrimonio_db], key="sel_edit")
-            etiq_edit = item_sel.split(" - ")[0]
-            item_obj = next(i for i in patrimonio_db if i["etiqueta"] == etiq_edit)
+        with st.form("form_cadastrar_item", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                etiqueta = st.text_input("Código / Etiqueta", value=codigo_sugerido)
+                nome_bem = st.text_input("Nome do Bem")
+                categoria = st.selectbox("Categoria", ["Veículo", "Informática", "Móveis", "Eletrônicos", "Equipamento", "Outros"])
             
-            with st.form("form_edit"):
-                e_nome = st.text_input("Nome", value=item_obj["nome"])
-                e_cat = st.selectbox("Categoria", ["Veículo", "Imóvel", "Móveis", "Informática", "Eletrodomésticos"], index=["Veículo", "Imóvel", "Móveis", "Informática", "Eletrodomésticos"].index(item_obj["categoria"]))
+            with col2:
+                cidade = st.selectbox("Cidade / Filial", cidades_lista)
+                status = st.selectbox("Status Inicial", ["Disponível", "Em Uso", "Manutenção", "Baixado"])
+                responsavel = st.text_input("Responsável Inicial", value="Equipe ISPN")
+
+            btn_cadastrar = st.form_submit_button("Cadastrar Patrimônio", type="primary", use_container_width=True)
+
+            if btn_cadastrar:
+                if not nome_bem.strip():
+                    st.warning("⚠️ Por favor, informe o nome do bem.")
+                else:
+                    # Cria e salva o novo item
+                    novo_item = {
+                        "etiqueta": etiqueta,
+                        "item": nome_bem,
+                        "categoria": categoria,
+                        "localizacao": cidade,
+                        "status": status,
+                        "responsavel": responsavel
+                    }
+                    patrimonio_db.append(novo_item)
+                    
+                    if save_all_data:
+                        try:
+                            save_all_data(st.session_state.users_db, patrimonio_db, historico_db, cidades_db)
+                        except Exception:
+                            pass
+                    
+                    # NOTIFICAÇÕES DE SUCESSO AO CLICAR EM CADASTRAR
+                    st.toast("Feito! Patrimônio cadastrado com sucesso.", icon="🎉")
+                    st.success(f"✅ Feito! O item '{nome_bem}' ({etiqueta}) foi cadastrado com sucesso.")
+
+    # --- ABA 2: EDITAR ITEM ---
+    with aba_sub[1]:
+        st.subheader("✏️ Editar Item Existente")
+        df_patrimonio = pd.DataFrame(patrimonio_db)
+        if not df_patrimonio.empty:
+            col_eq = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else df_patrimonio.columns[0]
+            col_nm = 'item' if 'item' in df_patrimonio.columns else df_patrimonio.columns[1]
+            
+            opcoes = df_patrimonio[col_eq].astype(str) + " - " + df_patrimonio[col_nm].astype(str)
+            item_sel = st.selectbox("Selecione para Editar:", opcoes)
+            
+            if item_sel:
+                cod_sel = item_sel.split(" - ")[0]
+                idx = next((i for i, item in enumerate(patrimonio_db) if str(item.get(col_eq)) == cod_sel), None)
                 
-                loc_idx = lista_cidades.index(item_obj["localizacao"]) if item_obj["localizacao"] in lista_cidades else 0
-                e_loc = st.selectbox("Cidade / Filial", options=lista_cidades, index=loc_idx)
-                
-                e_stat = st.selectbox("Status", ["Disponível", "Em Uso", "Em Manutenção"], index=["Disponível", "Em Uso", "Em Manutenção"].index(item_obj["status"]))
-                e_resp = st.text_input("Responsável", value=item_obj["responsavel"])
-                
-                if st.form_submit_button("Salvar Alterações", use_container_width=True):
-                    ok, msg = update_patrimonio(patrimonio_db, etiq_edit, e_nome, e_cat, e_loc, e_stat, e_resp)
-                    if ok:
-                        st.success(msg)
-                        st.rerun()
+                if idx is not None:
+                    dados = patrimonio_db[idx]
+                    with st.form("form_editar_item"):
+                        e_nome = st.text_input("Nome do Bem", value=dados.get(col_nm, ""))
+                        e_cat = st.text_input("Categoria", value=dados.get("categoria", ""))
+                        e_loc = st.text_input("Localização", value=dados.get("localizacao", ""))
+                        e_status = st.selectbox("Status", ["Disponível", "Em Uso", "Manutenção", "Baixado"], index=0)
+                        e_resp = st.text_input("Responsável", value=dados.get("responsavel", ""))
+                        
+                        if st.form_submit_button("Salvar Alterações", type="primary"):
+                            patrimonio_db[idx][col_nm] = e_nome
+                            patrimonio_db[idx]["categoria"] = e_cat
+                            patrimonio_db[idx]["localizacao"] = e_loc
+                            patrimonio_db[idx]["status"] = e_status
+                            patrimonio_db[idx]["responsavel"] = e_resp
+                            
+                            if save_all_data:
+                                try: save_all_data(st.session_state.users_db, patrimonio_db, historico_db, cidades_db)
+                                except Exception: pass
+                                
+                            st.toast("Feito! Item atualizado.", icon="✅")
+                            st.success("✅ Feito! Alterações salvas com sucesso.")
         else:
             st.info("Nenhum item disponível para edição.")
 
-    if tab3:
-        with tab3:
-            st.subheader("🗑️ Remover Patrimônio do Sistema")
-            st.warning("⚠️ Atenção: Esta ação é irreversível e excluirá o bem permanentemente da base.")
-            if not df.empty:
-                item_del_sel = st.selectbox("Selecione o Item para Excluir", [f"{i['etiqueta']} - {i['nome']} ({i['localizacao']})" for i in patrimonio_db], key="sel_del")
-                etiq_del = item_del_sel.split(" - ")[0]
+    # --- ABA 3: EXCLUIR ITEM ---
+    with aba_sub[2]:
+        st.subheader("🗑️ Excluir Item do Patrimônio")
+        if st.session_state.get("role") == "admin":
+            df_patrimonio = pd.DataFrame(patrimonio_db)
+            if not df_patrimonio.empty:
+                col_eq = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else df_patrimonio.columns[0]
+                col_nm = 'item' if 'item' in df_patrimonio.columns else df_patrimonio.columns[1]
                 
-                if st.button("🔴 Confirmar Exclusão Permanente", use_container_width=True):
-                    ok, msg = delete_patrimonio(patrimonio_db, historico_db, etiq_del)
-                    if ok:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
+                opcoes_del = df_patrimonio[col_eq].astype(str) + " - " + df_patrimonio[col_nm].astype(str)
+                item_del = st.selectbox("Selecione para Excluir:", opcoes_del)
+                
+                if st.button("🚨 Confirmar Exclusão", type="primary"):
+                    cod_del = item_del.split(" - ")[0]
+                    patrimonio_db[:] = [item for item in patrimonio_db if str(item.get(col_eq)) != cod_del]
+                    
+                    if save_all_data:
+                        try: save_all_data(st.session_state.users_db, patrimonio_db, historico_db, cidades_db)
+                        except Exception: pass
+                        
+                    st.toast("Item removido!", icon="🗑️")
+                    st.success("✅ Feito! Item excluído com sucesso.")
+                    st.rerun()
             else:
-                st.info("Nenhum item disponível para exclusão.")
+                st.info("Nenhum item para excluir.")
+        else:
+            st.warning("Apenas administradores podem excluir itens.")
