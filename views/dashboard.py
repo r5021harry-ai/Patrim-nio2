@@ -4,26 +4,74 @@ import plotly.express as px
 
 def render_dashboard(patrimonio_db):
     st.title("📊 Dashboard - Patrimônio ISPN")
+    
     df = pd.DataFrame(patrimonio_db)
     
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total de Bens", len(df))
-    col2.metric("Disponíveis", len(df[df["status"] == "Disponível"]) if not df.empty else 0)
-    col3.metric("Em Uso", len(df[df["status"] == "Em Uso"]) if not df.empty else 0)
-    col4.metric("Em Manutenção", len(df[df["status"] == "Em Manutenção"]) if not df.empty else 0)
+    if df.empty:
+        st.info("Nenhum patrimônio cadastrado para exibir no dashboard.")
+        return
 
-    st.markdown("---")
+    # Mapeamento de colunas flexível
+    col_status = 'status' if 'status' in df.columns else df.columns[0]
+    col_categoria = 'categoria' if 'categoria' in df.columns else df.columns[0]
+    col_local = 'localizacao' if 'localizacao' in df.columns else ('cidade' if 'cidade' in df.columns else df.columns[0])
 
-    if not df.empty:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("📍 Alocação por Localização")
-            fig_loc = px.pie(df, names="localizacao", title="Distribuição por Local", hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
-            st.plotly_chart(fig_loc, width="stretch")
+    # Métricas Superiores
+    total_bens = len(df)
+    disponiveis = len(df[df[col_status].astype(str).str.lower() == 'disponível']) if col_status in df.columns else 0
+    em_uso = len(df[df[col_status].astype(str).str.lower() == 'em uso']) if col_status in df.columns else 0
+    manutencao = len(df[df[col_status].astype(str).str.lower() == 'manutenção']) if col_status in df.columns else 0
 
-        with c2:
-            st.subheader("📂 Distribuição por Categoria ISPN")
-            fig_cat = px.bar(df, x="categoria", color="status", title="Patrimônios por Categoria e Status", barmode="stack")
-            st.plotly_chart(fig_cat, width="stretch")
-    else:
-        st.info("Nenhum patrimônio cadastrado no momento.")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Total de Bens", total_bens)
+    c2.metric("Disponíveis", disponiveis)
+    c3.metric("Em Uso", em_uso)
+    c4.metric("Em Manutenção", manutencao)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col_g1, col_g2 = st.columns(2)
+
+    with col_g1:
+        st.subheader("📍 Alocação por Localização")
+        if col_local in df.columns:
+            df_loc = df[col_local].value_counts().reset_index()
+            df_loc.columns = ['Local', 'Quantidade']
+            
+            fig_loc = px.pie(
+                df_loc, 
+                names='Local', 
+                values='Quantidade', 
+                hole=0.5,
+                color_discrete_sequence=px.colors.qualitative.Set2,
+                template="plotly_white"
+            )
+            fig_loc.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color="#0F172A")
+            )
+            st.plotly_chart(fig_loc, use_container_width=True)
+
+    with col_g2:
+        st.subheader("📁 Distribuição por Categoria ISPN")
+        if col_categoria in df.columns and col_status in df.columns:
+            df_cat = df.groupby([col_categoria, col_status]).size().reset_index(name='count')
+            
+            fig_cat = px.bar(
+                df_cat, 
+                x=col_categoria, 
+                y='count', 
+                color=col_status,
+                barmode='stack',
+                color_discrete_sequence=px.colors.qualitative.Safe,
+                template="plotly_white"
+            )
+            fig_cat.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color="#0F172A"),
+                xaxis_title="Categoria",
+                yaxis_title="Quantidade"
+            )
+            st.plotly_chart(fig_cat, use_container_width=True)
