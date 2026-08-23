@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import pandas as pd
 import importlib
-import io
 import urllib.parse
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -258,28 +257,37 @@ else:
         except TypeError:
             render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
 
-    # --- NOVA ABA: EMISSÃO DE ETIQUETAS ---
+    # --- ABA DE ETIQUETAS COM DETECÇÃO SEGURA DE COLUNAS ---
     with aba[2]:
-        st.subheader("🏷️ Gerador e Leitor de Etiquetas Patrimoniais")
-        st.write("Selecione um bem para gerar a etiqueta com Código de Barras Code128 pronto para impressão.")
+        st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
         
         df_patrimonio = pd.DataFrame(st.session_state.patrimonio_db)
         
         if not df_patrimonio.empty:
+            # Detecção inteligente de colunas
+            col_etiqueta = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else (
+                'patrimonio' if 'patrimonio' in df_patrimonio.columns else df_patrimonio.columns[0]
+            )
+            
+            col_nome = 'item' if 'item' in df_patrimonio.columns else (
+                'nome' if 'nome' in df_patrimonio.columns else (
+                    'descricao' if 'descricao' in df_patrimonio.columns else df_patrimonio.columns[1] if len(df_patrimonio.columns) > 1 else col_etiqueta
+                )
+            )
+
             col_sel1, col_sel2 = st.columns([2, 1])
             with col_sel1:
-                opcoes_itens = df_patrimonio['etiqueta'].astype(str) + " - " + df_patrimonio['item'].astype(str)
+                opcoes_itens = df_patrimonio[col_etiqueta].astype(str) + " - " + df_patrimonio[col_nome].astype(str)
                 item_selecionado = st.selectbox("Selecione o Patrimônio:", opcoes_itens)
             
             if item_selecionado:
                 etiqueta_cod = item_selecionado.split(" - ")[0]
-                item_dados = df_patrimonio[df_patrimonio['etiqueta'] == etiqueta_cod].iloc[0]
+                item_dados = df_patrimonio[df_patrimonio[col_etiqueta].astype(str) == etiqueta_cod].iloc[0]
                 
-                # URL para geração do código de barras Code128
+                # URL de código de barras
                 barcode_url = f"https://barcode.tec-it.com/barcode.ashx?data={urllib.parse.quote(etiqueta_cod)}&code=Code128&translate-esc=false"
                 
                 st.markdown("---")
-                
                 c_etiqueta, c_info = st.columns([1, 2])
                 
                 with c_etiqueta:
@@ -287,23 +295,22 @@ else:
                         f"""
                         <div class="etiqueta-card">
                             <h3 style="margin: 0; color: #2E7D32; font-size: 18px;">PATRIMÔNIO ISPN</h3>
-                            <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_dados['item']}</p>
+                            <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_dados[col_nome]}</p>
                             <img src="{barcode_url}" alt="Código de Barras" style="width: 80%; margin: 10px 0;">
-                            <p style="margin: 0; font-size: 12px; color: #555;">Local: {item_dados.get('localizacao', 'N/A')}</p>
+                            <p style="margin: 0; font-size: 12px; color: #555;">Etiqueta: {etiqueta_cod}</p>
                         </div>
                         """, 
                         unsafe_allow_html=True
                     )
                 
                 with c_info:
-                    st.markdown(f"**Etiqueta:** `{item_dados['etiqueta']}`")
-                    st.markdown(f"**Descrição:** {item_dados['item']}")
-                    st.markdown(f"**Categoria:** {item_dados.get('categoria', 'N/A')}")
-                    st.markdown(f"**Localização:** {item_dados.get('localizacao', 'N/A')}")
-                    st.markdown(f"**Responsável:** {item_dados.get('responsavel', 'N/A')}")
-                    st.markdown(f"**Status:** `{item_dados.get('status', 'N/A')}`")
+                    st.markdown(f"**Código:** `{etiqueta_cod}`")
+                    st.markdown(f"**Item:** {item_dados[col_nome]}")
+                    for key, val in item_dados.items():
+                        if key not in [col_etiqueta, col_nome]:
+                            st.markdown(f"**{str(key).title()}:** {val}")
         else:
-            st.info("Nenhum patrimônio cadastrado no sistema para emissão de etiquetas.")
+            st.info("Nenhum patrimônio disponível no banco de dados para gerar etiquetas.")
 
     with aba[3]:
         try:
