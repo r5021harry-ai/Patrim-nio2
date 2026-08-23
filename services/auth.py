@@ -1,43 +1,43 @@
-import importlib
+import hashlib
 
-# Importação dinâmica para suportar 'banco de dados' com espaço
-try:
-    db_mod = importlib.import_module("banco de dados.db")
-except ModuleNotFoundError:
-    try:
-        db_mod = importlib.import_module("banco_dados.db")
-    except ModuleNotFoundError:
-        db_mod = importlib.import_module("database.db")
+def hash_password(password: str) -> str:
+    """Gera um hash SHA-256 para a senha."""
+    return hashlib.sha256(password.encode()).hexdigest()
 
-save_json = getattr(db_mod, "save_json", getattr(db_mod, "salvar_json", None))
-USERS_FILE = getattr(db_mod, "USERS_FILE", getattr(db_mod, "ARQUIVO_DE_USUARIOS", "users.json"))
-
-def authenticate_user(users_db, username, password):
-    if username in users_db:
-        user_data = users_db[username]
-        pwd = user_data.get("senha") or user_data.get("password")
-        role = user_data.get("papel") or user_data.get("role", "user")
-        
-        if str(pwd) == str(password):
-            return True, role
+def authenticate_user(users_db: dict, username: str, password: str):
+    """Autentica o usuário verificando o hash da senha."""
+    user = users_db.get(username)
+    if not user:
+        return False, None
+    
+    # Suporta senhas antigas em texto puro e senhas em Hash
+    hashed_input = hash_password(password)
+    if user["password"] == password or user["password"] == hashed_input:
+        return True, user.get("role", "user")
+    
     return False, None
 
-def create_user(users_db, username, password, role):
+def create_user(users_db: dict, username: str, password: str, role: str = "user"):
+    """Cria um novo usuário com senha criptografada."""
     if username in users_db:
-        return False, "Usuário já existe."
-    users_db[username] = {"senha": password, "papel": role}
-    if save_json:
-        save_json(USERS_FILE, users_db)
-    return True, f"Usuário '{username}' criado com sucesso!"
+        return False, "Usuário já existe!"
+    
+    users_db[username] = {
+        "password": hash_password(password),
+        "role": role
+    }
+    return True, "Usuário criado com sucesso!"
 
-def update_password(users_db, username, new_password):
+def update_password(users_db: dict, username: str, new_password: str):
+    """Atualiza a senha do usuário existente."""
     if username in users_db:
-        if isinstance(users_db[username], dict):
-            if "senha" in users_db[username]:
-                users_db[username]["senha"] = new_password
-            else:
-                users_db[username]["password"] = new_password
-        if save_json:
-            save_json(USERS_FILE, users_db)
-        return True, "Senha atualizada com sucesso!"
+        users_db[username]["password"] = hash_password(new_password)
+        return True
+    return False
+
+def delete_user(users_db: dict, username: str):
+    """Remove um usuário do banco de dados."""
+    if username in users_db:
+        del users_db[username]
+        return True, "Usuário removido com sucesso!"
     return False, "Usuário não encontrado."
