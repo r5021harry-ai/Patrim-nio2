@@ -52,11 +52,14 @@ if len(data) == 4:
     users_db, patrimonio_db, historico_db, cidades_db = data
 else:
     users_db, patrimonio_db, historico_db = data
-    cidades_db = None
+    # Garante que cidades_db é um dicionário válido para não dar AttributeError
+    cidades_db = {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
 
 if "users_db" not in st.session_state: st.session_state.users_db = users_db
 if "patrimonio_db" not in st.session_state: st.session_state.patrimonio_db = patrimonio_db
 if "historico_db" not in st.session_state: st.session_state.historico_db = historico_db
+if "cidades_db" not in st.session_state: st.session_state.cidades_db = cidades_db
+
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
@@ -146,12 +149,6 @@ else:
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
     with aba[1]:
-        try:
-            render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, cidades_db)
-        except TypeError:
-            render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
+        render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
     with aba[2]:
-        try:
-            render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, cidades_db)
-        except TypeError:
-            render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db)
+        render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
