@@ -273,6 +273,9 @@ if "logged_in" not in st.session_state:
     st.session_state.username = ""
     st.session_state.role = ""
 
+if "login_mode" not in st.session_state:
+    st.session_state.login_mode = "login"
+
 # --- TELA DE LOGIN & RECUPERAÇÃO DE SENHA ---
 def login_screen():
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -295,14 +298,15 @@ def login_screen():
             unsafe_allow_html=True
         )
         
-        tab_login, tab_esqueci = st.tabs(["🔑 Entrar", "❓ Esqueci a Senha"])
-        
-        with tab_login:
+        # MODO LOGIN PRINCIPAL
+        if st.session_state.login_mode == "login":
             with st.form("login_form"):
                 u_input = st.text_input("Usuário")
                 p_input = st.text_input("Senha", type="password")
                 st.markdown("<br>", unsafe_allow_html=True)
-                if st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary"):
+                
+                submitted = st.form_submit_button("Entrar no Sistema", use_container_width=True, type="primary")
+                if submitted:
                     ok, role = authenticate_user(st.session_state.users_db, u_input, p_input)
                     if ok:
                         st.session_state.logged_in = True
@@ -311,11 +315,20 @@ def login_screen():
                         st.rerun()
                     else:
                         st.error("Usuário ou senha incorretos.")
+            
+            # Botão Esqueci a Senha abaixo, no mesmo estilo
+            if st.button("Esqueci a Senha", use_container_width=True, type="primary"):
+                st.session_state.login_mode = "recuperar"
+                st.rerun()
 
-        with tab_esqueci:
-            st.markdown("<p style='font-size: 13px; color: #64748B;'>Insira seu e-mail corporativo para solicitar a recuperação.</p>", unsafe_allow_html=True)
+        # MODO RECUPERAÇÃO DE SENHA
+        else:
+            st.markdown("<p style='font-size: 14px; font-weight: 600; color: #15803D; text-align: center;'>Recuperação de Senha</p>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: 13px; color: #64748B; text-align: center;'>Insira seu e-mail corporativo para solicitar uma nova senha.</p>", unsafe_allow_html=True)
+            
             with st.form("form_recuperacao"):
                 email_input = st.text_input("E-mail (@ispn.org.br)")
+                
                 if st.form_submit_button("Solicitar Senha", use_container_width=True, type="primary"):
                     email_clean = email_input.strip().lower()
                     if not email_clean.endswith("@ispn.org.br"):
@@ -335,6 +348,10 @@ def login_screen():
                                 st.warning(f"Senha atualizada no sistema, mas houve erro no envio do e-mail: {msg_mail}")
                         else:
                             st.error("Usuário não cadastrado no sistema.")
+
+            if st.button("⬅️ Voltar para o Login", use_container_width=True):
+                st.session_state.login_mode = "login"
+                st.rerun()
 
 if not st.session_state.logged_in:
     login_screen()
@@ -359,6 +376,7 @@ else:
         
         if st.button("🚪 Sair", use_container_width=True):
             st.session_state.logged_in = False
+            st.session_state.login_mode = "login"
             st.rerun()
 
         st.divider()
@@ -376,7 +394,9 @@ else:
                     u_sel = st.selectbox("Selecione um usuário:", user_list)
                     
                     if u_sel:
-                        st.caption(f"Perfil atual: **{dict_users[u_sel].get('role', 'user')}**")
+                        u_data = dict_users[u_sel]
+                        u_role = u_data.get("role", "user") if isinstance(u_data, dict) else ("admin" if u_sel == "admin" else "user")
+                        st.caption(f"Perfil atual: **{u_role}**")
                         
                         # Mudar Senha
                         n_pass_adm = st.text_input(f"Nova senha para {u_sel}", type="password", key=f"p_{u_sel}")
