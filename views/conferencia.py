@@ -63,7 +63,7 @@ def ler_codigo_imagem(image_file):
     return None
 
 def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_relatorio="Relatório de Auditoria e Vistorias"):
-    """Gera um PDF formatado contendo dados e fotos das vistorias."""
+    """Gera um PDF formatado contendo dados e fotos das vistorias mantendo proporções."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
@@ -72,9 +72,8 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, leading=20, textColor=colors.HexColor("#1A365D"), alignment=1)
     subtitle_style = ParagraphStyle('SubTitleStyle', parent=styles['Normal'], fontSize=9, leading=12, alignment=1, textColor=colors.gray)
     text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=9, leading=13)
-    bold_style = ParagraphStyle('BoldStyle', parent=styles['Normal'], fontSize=9, leading=13, fontName="Helvetica-Bold")
     
-    # Cabeçalho com Horário Oficial do Brasil de quando o documento foi gerado
+    # Cabeçalho com Horário do momento de emissão do documento
     agora_br = obter_agora_br().strftime('%d/%m/%Y às %H:%M:%S')
     story.append(Paragraph(f"<b>{titulo_relatorio}</b>", title_style))
     story.append(Paragraph(f"Gerado em: {agora_br}", subtitle_style))
@@ -95,25 +94,21 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
         if item_bd:
             categoria = item_bd.get("categoria", item_bd.get("tipo", "Não informada"))
 
-        # Trata e formata a Data/Hora da VISTORIA registrada no banco de dados
-        data_orig = vist.get('data', '')
-        data_formatada = "N/A"
-        
-        if data_orig:
+        # Pega a data e hora EXATAS do momento da vistoria
+        data_orig = vist.get('data', 'N/A')
+        data_formatada = str(data_orig)
+        if "às" not in data_formatada and data_formatada != 'N/A':
             try:
-                if "às" in str(data_orig):
-                    data_formatada = str(data_orig)
-                else:
-                    dt_obj = datetime.strptime(str(data_orig).split(".")[0], "%Y-%m-%d %H:%M:%S")
-                    data_formatada = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
+                dt_obj = datetime.strptime(data_formatada.split(".")[0], "%Y-%m-%d %H:%M:%S")
+                data_formatada = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
             except Exception:
-                data_formatada = str(data_orig)
+                pass
 
-        # Trata emojis para evitar caracteres indeferidos (■) no PDF
+        # Limpa emojis para evitar caracteres corrompidos
         estado = dict_detalhes.get('Estado', 'N/I')
         estado_limpo = estado.replace("🟢", "").replace("🟡", "").replace("🔴", "").replace("⚠️", "").strip()
 
-        # Monta texto das informações do item
+        # Texto das Informações
         info_text = f"""
         <b>Item:</b> {vist.get('item', 'N/I')}<br/>
         <b>Código/Patrimônio:</b> {vist.get('etiqueta', 'N/A')}<br/>
@@ -126,7 +121,7 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
         """
         p_info = Paragraph(info_text, text_style)
 
-        # Processa e redimensiona a foto proporcionalmente (sem distorcer)
+        # Trata a foto proporcionalmente (sem esticar ou deformar)
         img_element = Paragraph("<i>Sem foto de comprovação</i>", text_style)
         foto = vist.get("foto") or vist.get("imagem")
         
@@ -139,15 +134,13 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
                 
                 img_buffer = io.BytesIO(foto_bytes)
                 
-                # Abre com PIL para ler a proporção original da imagem
                 if HAS_VISION:
                     pil_img = PILImage.open(img_buffer)
                     orig_w, orig_h = pil_img.size
                     
                     max_w, max_h = 140.0, 100.0
                     ratio = min(max_w / orig_w, max_h / orig_h)
-                    new_w = orig_w * ratio
-                    new_h = orig_h * ratio
+                    new_w, new_h = orig_w * ratio, orig_h * ratio
                     
                     img_buffer.seek(0)
                     img_element = RLImage(img_buffer, width=new_w, height=new_h)
@@ -156,7 +149,7 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
             except Exception:
                 img_element = Paragraph("<i>Erro ao carregar imagem</i>", text_style)
 
-        # Tabela em Card para cada item
+        # Card de cada item no PDF
         tabela_card = Table([[p_info, img_element]], colWidths=[370, 150])
         tabela_card.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F8FAFC")),
@@ -273,7 +266,8 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                 submit = st.form_submit_button("Registrar Conferência", type="primary", use_container_width=True)
 
                 if submit:
-                    data_hora = obter_agora_br().strftime("%Y-%m-%d %H:%M:%S")
+                    # Captura exatamente a data/hora oficial no fuso horário do Brasil
+                    data_hora = datetime.now(TZ_BR).strftime("%d/%m/%Y às %H:%M:%S")
                     usuario_auditor = st.session_state.get('username', 'usuario')
 
                     patrimonio_db[idx][col_status] = novo_status
@@ -312,7 +306,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
     if not vistorias:
         st.info("Nenhuma vistoria ou auditoria registrada até o momento.")
     else:
-        # Prepara Mapeamento por Categoria
         categorias_set = set()
         vistorias_com_categoria = []
 
@@ -393,7 +386,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                         chave, valor = p.split(":", 1)
                         dict_detalhes[chave.strip()] = valor.strip()
 
-                # Formatação da data na exibição em tela
                 data_tela = vist.get('data', 'N/A')
                 try:
                     if "às" not in str(data_tela) and data_tela != 'N/A':
