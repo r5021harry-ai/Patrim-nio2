@@ -24,7 +24,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
         
         cidades_lista = cidades_db.get("lista", ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]) if cidades_db else ["Santa Inês – MA"]
         
-        # Sugestão automática de código
         proximo_id = len(patrimonio_db) + 1
         codigo_sugerido = f"PAT-{proximo_id:03d}"
 
@@ -46,7 +45,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                 if not nome_bem.strip():
                     st.warning("⚠️ Por favor, informe o nome do bem.")
                 else:
-                    # Cria e salva o novo item
                     novo_item = {
                         "etiqueta": etiqueta,
                         "item": nome_bem,
@@ -63,22 +61,25 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                         except Exception:
                             pass
                     
-                    # NOTIFICAÇÕES DE SUCESSO AO CLICAR EM CADASTRAR
                     st.toast("Feito! Patrimônio cadastrado com sucesso.", icon="🎉")
-                    st.success(f"✅ Feito! O item '{nome_bem}' ({etiqueta}) foi cadastrado com sucesso.")
+                    st.success(f"Feito! O item '{nome_bem}' ({etiqueta}) foi cadastrado com sucesso.")
 
     # --- ABA 2: EDITAR ITEM ---
     with aba_sub[1]:
         st.subheader("✏️ Editar Item Existente")
         df_patrimonio = pd.DataFrame(patrimonio_db)
         if not df_patrimonio.empty:
-            col_eq = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else df_patrimonio.columns[0]
-            col_nm = 'item' if 'item' in df_patrimonio.columns else df_patrimonio.columns[1]
+            col_eq = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else (
+                'patrimonio' if 'patrimonio' in df_patrimonio.columns else df_patrimonio.columns[0]
+            )
+            col_nm = 'item' if 'item' in df_patrimonio.columns else (
+                'nome' if 'nome' in df_patrimonio.columns else df_patrimonio.columns[1] if len(df_patrimonio.columns) > 1 else col_eq
+            )
             
             opcoes = df_patrimonio[col_eq].astype(str) + " - " + df_patrimonio[col_nm].astype(str)
             item_sel = st.selectbox("Selecione para Editar:", opcoes)
             
-            if item_sel:
+            if item_sel and isinstance(item_sel, str) and " - " in item_sel:
                 cod_sel = item_sel.split(" - ")[0]
                 idx = next((i for i, item in enumerate(patrimonio_db) if str(item.get(col_eq)) == cod_sel), None)
                 
@@ -103,7 +104,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                                 except Exception: pass
                                 
                             st.toast("Feito! Item atualizado.", icon="✅")
-                            st.success("✅ Feito! Alterações salvas com sucesso.")
+                            st.success("Feito! Alterações salvas com sucesso.")
         else:
             st.info("Nenhum item disponível para edição.")
 
@@ -113,23 +114,28 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
         if st.session_state.get("role") == "admin":
             df_patrimonio = pd.DataFrame(patrimonio_db)
             if not df_patrimonio.empty:
-                col_eq = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else df_patrimonio.columns[0]
-                col_nm = 'item' if 'item' in df_patrimonio.columns else df_patrimonio.columns[1]
+                col_eq = 'etiqueta' if 'etiqueta' in df_patrimonio.columns else (
+                    'patrimonio' if 'patrimonio' in df_patrimonio.columns else df_patrimonio.columns[0]
+                )
+                col_nm = 'item' if 'item' in df_patrimonio.columns else (
+                    'nome' if 'nome' in df_patrimonio.columns else df_patrimonio.columns[1] if len(df_patrimonio.columns) > 1 else col_eq
+                )
                 
                 opcoes_del = df_patrimonio[col_eq].astype(str) + " - " + df_patrimonio[col_nm].astype(str)
                 item_del = st.selectbox("Selecione para Excluir:", opcoes_del)
                 
                 if st.button("🚨 Confirmar Exclusão", type="primary"):
-                    cod_del = item_del.split(" - ")[0]
-                    patrimonio_db[:] = [item for item in patrimonio_db if str(item.get(col_eq)) != cod_del]
-                    
-                    if save_all_data:
-                        try: save_all_data(st.session_state.users_db, patrimonio_db, historico_db, cidades_db)
-                        except Exception: pass
+                    if item_del and isinstance(item_del, str) and " - " in item_del:
+                        cod_del = item_del.split(" - ")[0]
+                        patrimonio_db[:] = [item for item in patrimonio_db if str(item.get(col_eq)) != cod_del]
                         
-                    st.toast("Item removido!", icon="🗑️")
-                    st.success("✅ Feito! Item excluído com sucesso.")
-                    st.rerun()
+                        if save_all_data:
+                            try: save_all_data(st.session_state.users_db, patrimonio_db, historico_db, cidades_db)
+                            except Exception: pass
+                            
+                        st.toast("Item removido!", icon="🗑️")
+                        st.success("Feito! Item excluído com sucesso.")
+                        st.rerun()
             else:
                 st.info("Nenhum item para excluir.")
         else:
