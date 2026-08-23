@@ -472,3 +472,36 @@ else:
             render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
         except TypeError:
             render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db)
+        
+        # --- SÇÃO DE IMPORTAÇÃO DE PLANILHA (GARANTIA DE VISIBILIDADE) ---
+        with st.expander("📥 Importar Planilha de Patrimônio (Excel / CSV)", expanded=False):
+            st.markdown("Carregue uma planilha em formato `.xlsx` ou `.csv` para adicionar novos itens ao sistema.")
+            arquivo_upload = st.file_uploader("Selecione o arquivo de planilha:", type=["csv", "xlsx"])
+            
+            if arquivo_upload is not None:
+                try:
+                    if arquivo_upload.name.endswith('.csv'):
+                        df_import = pd.read_csv(arquivo_upload)
+                    else:
+                        df_import = pd.read_excel(arquivo_upload)
+                    
+                    st.write("Preview dos Dados da Planilha:")
+                    st.dataframe(df_import.head(10), use_container_width=True)
+                    
+                    mod_import = st.radio("Modo de Importação:", ["Adicionar aos existentes", "Substituir base inteira"])
+                    
+                    if st.button("Confirmar Importação de Planilha", type="primary"):
+                        novos_itens = df_import.to_dict(orient="records")
+                        
+                        if mod_import == "Substituir base inteira":
+                            st.session_state.patrimonio_db = novos_itens
+                        else:
+                            st.session_state.patrimonio_db.extend(novos_itens)
+                            
+                        if save_all_data:
+                            save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+                        
+                        st.success(f"Sucesso! {len(novos_itens)} itens importados com sucesso.")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao ler arquivo: {str(e)}")
