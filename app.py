@@ -1,5 +1,7 @@
 import streamlit as st
+import os
 import pandas as pd
+
 from database.db import load_all_data
 from services.auth import authenticate_user, create_user, update_password
 from views.dashboard import render_dashboard
@@ -8,9 +10,10 @@ from views.relatorios import render_relatorios
 
 st.set_page_config(page_title="Patrimônio ISPN", page_icon="📦", layout="wide")
 
-ISPN_LOGO_URL = "https://ispn.org.br/wp-content/uploads/2020/01/logo-ispn-30anos.png"
+# Verificar se a logo local existe
+LOGO_PATH = "logo.png" if os.path.exists("logo.png") else "https://ispn.org.br/wp-content/uploads/2020/01/logo-ispn-30anos.png"
 
-# Carregar dados (suportando a presença ou ausência de cidades_db)
+# Carregar dados
 data = load_all_data()
 if len(data) == 4:
     users_db, patrimonio_db, historico_db, cidades_db = data
@@ -36,10 +39,14 @@ if "logged_in" not in st.session_state:
 def login_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        try:
+            st.image(LOGO_PATH, width=200)
+        except Exception:
+            pass
+            
         st.markdown(
-            f"""
+            """
             <div style="text-align: center; margin-bottom: 15px;">
-                <img src="{ISPN_LOGO_URL}" width="180" alt="Logo ISPN" style="margin-bottom: 10px;">
                 <h1 style="color: #2E7D32; font-family: 'Arial', sans-serif; font-size: 32px; font-weight: bold; margin-top: 5px;">
                     Patrimônio ISPN
                 </h1>
@@ -66,7 +73,11 @@ if not st.session_state.logged_in:
     login_screen()
 else:
     # Sidebar
-    st.sidebar.image(ISPN_LOGO_URL, width=140)
+    try:
+        st.sidebar.image(LOGO_PATH, width=140)
+    except Exception:
+        pass
+        
     st.sidebar.markdown("### Patrimônio ISPN")
     st.sidebar.markdown(f"👤 Logado como: **{st.session_state.username}** (`{st.session_state.role.upper()}`)")
     if st.sidebar.button("🚪 Sair", use_container_width=True):
@@ -114,6 +125,15 @@ else:
     with aba[0]:
         render_dashboard(st.session_state.patrimonio_db)
     with aba[1]:
-        render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+        # Tenta passar cidades_db para render_gestao, com fallback seguro
+        try:
+            render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+        except TypeError:
+            render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
+            
     with aba[2]:
-        render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+        # Tenta passar cidades_db para render_relatorios, com fallback seguro
+        try:
+            render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+        except TypeError:
+            render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db)
