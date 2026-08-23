@@ -224,18 +224,25 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     buffer.seek(0)
     return buffer.getvalue()
 
-# --- CARREGAMENTO DE DADOS ---
-data = load_all_data()
-if len(data) == 4:
-    users_db, patrimonio_db, historico_db, cidades_db = data
-else:
-    users_db, patrimonio_db, historico_db = data
-    cidades_db = {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
+# --- CARREGAMENTO INICIAL E PERSISTENTE DE DADOS ---
+# Garante que a leitura do arquivo aconteça SOMENTE na primeira vez que o sistema abre!
+if "patrimonio_db" not in st.session_state:
+    if load_all_data:
+        data = load_all_data()
+        if isinstance(data, tuple) and len(data) == 4:
+            users_db, patrimonio_db, historico_db, cidades_db = data
+        elif isinstance(data, tuple) and len(data) == 3:
+            users_db, patrimonio_db, historico_db = data
+            cidades_db = {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
+        else:
+            users_db, patrimonio_db, historico_db, cidades_db = {}, [], [], {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
+    else:
+        users_db, patrimonio_db, historico_db, cidades_db = {}, [], [], {"lista": ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"], "padrao": "Santa Inês – MA"}
 
-if "users_db" not in st.session_state: st.session_state.users_db = users_db
-if "patrimonio_db" not in st.session_state: st.session_state.patrimonio_db = patrimonio_db
-if "historico_db" not in st.session_state: st.session_state.historico_db = historico_db
-if "cidades_db" not in st.session_state: st.session_state.cidades_db = cidades_db
+    st.session_state.users_db = users_db
+    st.session_state.patrimonio_db = patrimonio_db
+    st.session_state.historico_db = historico_db
+    st.session_state.cidades_db = cidades_db
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -314,6 +321,8 @@ else:
                     if st.form_submit_button("Atualizar", type="primary"):
                         if n_pass:
                             update_password(st.session_state.users_db, st.session_state.username, n_pass)
+                            if save_all_data:
+                                save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
                             st.success("Senha alterada!")
                         else:
                             st.warning("Senha inválida.")
@@ -326,8 +335,12 @@ else:
                     if st.form_submit_button("Criar Usuário", type="primary"):
                         if n_user and n_pass:
                             ok, msg = create_user(st.session_state.users_db, n_user, n_pass, n_role)
-                            if ok: st.success(msg)
-                            else: st.error(msg)
+                            if ok: 
+                                if save_all_data:
+                                    save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+                                st.success(msg)
+                            else: 
+                                st.error(msg)
 
             with st.expander("🗑️ Gerenciar Dados"):
                 if st.button("Limpar Histórico Geral", type="primary", use_container_width=True):
