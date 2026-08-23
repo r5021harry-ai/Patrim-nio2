@@ -5,16 +5,28 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 def authenticate_user(users_db: dict, username: str, password: str):
-    """Autentica o usuário verificando o hash da senha."""
-    user = users_db.get(username)
-    if not user:
+    """Autentica o usuário verificando o hash ou texto da senha com segurança."""
+    if not users_db or username not in users_db:
         return False, None
+
+    user = users_db.get(username)
     
-    # Suporta senhas antigas em texto puro e senhas em Hash
+    # Trata caso o valor armazenado seja uma string simples ou um dicionário
+    if isinstance(user, str):
+        stored_password = user
+        role = "admin" if username == "admin" else "user"
+    elif isinstance(user, dict):
+        stored_password = user.get("password", "")
+        role = user.get("role", "user")
+    else:
+        return False, None
+
     hashed_input = hash_password(password)
-    if user["password"] == password or user["password"] == hashed_input:
-        return True, user.get("role", "user")
     
+    # Comparação segura contra textos e hashes
+    if stored_password and (stored_password == password or stored_password == hashed_input):
+        return True, role
+
     return False, None
 
 def create_user(users_db: dict, username: str, password: str, role: str = "user"):
@@ -31,7 +43,13 @@ def create_user(users_db: dict, username: str, password: str, role: str = "user"
 def update_password(users_db: dict, username: str, new_password: str):
     """Atualiza a senha do usuário existente."""
     if username in users_db:
-        users_db[username]["password"] = hash_password(new_password)
+        if isinstance(users_db[username], dict):
+            users_db[username]["password"] = hash_password(new_password)
+        else:
+            users_db[username] = {
+                "password": hash_password(new_password),
+                "role": "admin" if username == "admin" else "user"
+            }
         return True
     return False
 
