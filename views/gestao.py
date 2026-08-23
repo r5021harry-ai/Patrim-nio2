@@ -40,25 +40,32 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
     # --- ABA 1: NOVO ITEM ---
     with aba_sub[0]:
         st.subheader("➕ Cadastrar Novo Item")
-        
-        # Gerar próximo código PAT
-        proximo_num = len(patrimonio_db) + 1
-        codigo_sugerido = f"PAT-{proximo_num:03d}"
 
         col_a, col_b = st.columns(2)
         with col_a:
-            etiqueta = st.text_input("Código / Etiqueta", value=codigo_sugerido, key="cad_etiq")
-            nome_bem = st.text_input("Nome do Bem", key="cad_nome")
             categoria = st.selectbox(
                 "Categoria", 
                 ["Veículo", "Informática", "Mobiliário", "Eletrodoméstico", "Equipamento de Campo", "Outros"],
                 key="cad_cat"
             )
+
+            # Lógica para gerar prefixo VEI- para veículos e PAT- para os demais
+            prefixo_sugerido = "VEI-" if categoria == "Veículo" else "PAT-"
+            codigos_existentes = [
+                str(item.get(col_etiqueta, "")) 
+                for item in patrimonio_db 
+                if str(item.get(col_etiqueta, "")).startswith(prefixo_sugerido)
+            ]
+            proximo_num = len(codigos_existentes) + 1
+            codigo_sugerido = f"{prefixo_sugerido}{proximo_num:03d}"
+
+            etiqueta = st.text_input("Código / Etiqueta", value=codigo_sugerido, key="cad_etiq")
+            nome_bem = st.text_input("Nome do Bem", key="cad_nome")
             
-            # Campo dinâmico de placa
+            # Campo opcional de placa para veículos
             placa = ""
             if categoria == "Veículo":
-                placa = st.text_input("Placa do Veículo (ex: ABC-1234 ou ABC1D23)", key="cad_placa").strip().upper()
+                placa = st.text_input("Placa do Veículo (Opcional - ex: ABC-1234 ou ABC1D23)", key="cad_placa").strip().upper()
 
         with col_b:
             cidade = st.selectbox("Cidade / Filial", lista_cidades, key="cad_cid")
@@ -68,8 +75,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
         if st.button("Cadastrar Patrimônio", type="primary", use_container_width=True):
             if not nome_bem:
                 st.error("Por favor, preencha o Nome do Bem.")
-            elif categoria == "Veículo" and not placa:
-                st.warning("Por favor, insira a Placa do Veículo.")
             else:
                 novo_reg = {
                     col_etiqueta: etiqueta,
@@ -128,7 +133,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None):
                     e_placa = ""
                     if e_cat == "Veículo":
                         placa_atual = item_dados.get("placa", "")
-                        e_placa = st.text_input("Placa do Veículo", value=placa_atual, key="e_placa").strip().upper()
+                        e_placa = st.text_input("Placa do Veículo (Opcional)", value=placa_atual, key="e_placa").strip().upper()
 
                 with c_edit2:
                     loc_atual = item_dados.get(col_local, lista_cidades[0])
