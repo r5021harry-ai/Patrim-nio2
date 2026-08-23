@@ -18,38 +18,38 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- REGRAS CSS: DESIGN CLARO & MÉTRICAS VISÍVEIS ---
+# --- CSS CUSTOMIZADO (TEMA ESCURO RESTAURADO) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    :root {
-        color-scheme: light !important;
-    }
-
     html, body, [class*="css"], [data-testid="stAppViewContainer"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        background-color: #F8FAFC !important;
-        color: #0F172A !important;
+        background-color: #0E1318 !important;
+        color: #E2E8F0 !important;
     }
 
-    /* FIX DEFINITIVO DAS MÉTRICAS (TEXTOS VISÍVEIS) */
+    .stApp {
+        background-color: #0E1318 !important;
+    }
+
+    /* CARDS E MÉTRICAS */
     [data-testid="stMetric"] {
-        background: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
+        background: #141B21 !important;
+        border: 1px solid #2A363F !important;
         border-radius: 12px;
         padding: 16px 20px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
 
     [data-testid="stMetricLabel"] *, [data-testid="stMetricLabel"] p {
-        color: #475569 !important;
-        font-weight: 600 !important;
+        color: #9CA3AF !important;
+        font-weight: 500 !important;
         font-size: 14px !important;
     }
 
     [data-testid="stMetricValue"] *, [data-testid="stMetricValue"] div {
-        color: #0F382C !important;
+        color: #FFFFFF !important;
         font-weight: 700 !important;
     }
 
@@ -58,52 +58,48 @@ st.markdown("""
         gap: 16px;
         background-color: transparent;
         padding: 0;
-        border-bottom: 2px solid #E2E8F0;
+        border-bottom: 1px solid #2A363F;
     }
 
     .stTabs [data-baseweb="tab"] {
-        height: 44px;
+        height: 40px;
         background-color: transparent !important;
         border: none !important;
-        color: #475569 !important;
-        font-weight: 600;
+        color: #9CA3AF !important;
+        font-weight: 500;
         font-size: 0.95rem;
-        padding: 0px 12px;
+        padding: 0px 8px;
     }
 
     .stTabs [aria-selected="true"] {
-        color: #0F382C !important;
-        font-weight: 700 !important;
-        border-bottom: 3px solid #15803D !important;
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        border-bottom: 2px solid #2E7D32 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
     }
 
-    /* BARRA LATERAL (VERDE ISPN) */
+    /* BARRA LATERAL */
     [data-testid="stSidebar"] {
-        background-color: #0F382C !important;
-        border-right: 1px solid #14532D;
+        background-color: #141B21 !important;
+        border-right: 1px solid #2A363F;
     }
 
     [data-testid="stSidebar"] *, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
-        color: #F8FAFC !important;
-    }
-
-    [data-testid="stSidebar"] .stButton>button {
-        background-color: #166534 !important;
-        border: 1px solid #22C55E !important;
-        color: #FFFFFF !important;
+        color: #E2E8F0 !important;
     }
 
     /* BOTÕES GERAIS */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
-        border: 1px solid #CBD5E1 !important;
-        background-color: #FFFFFF !important;
-        color: #0F172A !important;
+        border: 1px solid #2A363F !important;
+        background-color: #1A232A !important;
+        color: #E2E8F0 !important;
     }
 
     .stButton>button[kind="primary"] {
-        background-color: #15803D !important;
+        background: #2E7D32 !important;
         border: none !important;
         color: #FFFFFF !important;
     }
@@ -114,10 +110,9 @@ st.markdown("""
         color: #000000 !important;
         padding: 18px;
         border-radius: 10px;
-        border: 2px solid #0F382C;
+        border: 2px solid #000000;
         text-align: center;
         margin-bottom: 15px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -167,7 +162,7 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     
     c = canvas.Canvas(buffer, pagesize=(largura, altura))
     c.setFont("Helvetica-Bold", 7)
-    c.setFillColorRGB(0.09, 0.50, 0.24)
+    c.setFillColorRGB(0.18, 0.49, 0.20)
     c.drawCentredString(largura / 2.0, altura - 5 * mm, "PATRIMÔNIO ISPN")
     
     c.setFont("Helvetica-Bold", 6)
@@ -218,10 +213,10 @@ def login_screen():
         st.markdown(
             """
             <div style="text-align: center; margin-top: 10px; margin-bottom: 20px;">
-                <h2 style="color: #0F382C; font-weight: 700; margin-bottom: 4px; font-size: 26px;">
+                <h2 style="color: #FFFFFF; font-weight: 700; margin-bottom: 4px; font-size: 26px;">
                     Patrimônio ISPN
                 </h2>
-                <p style="color: #64748B; font-size: 13px; margin: 0;">Instituto Sociedade, População e Natureza</p>
+                <p style="color: #9CA3AF; font-size: 13px; margin: 0;">Instituto Sociedade, População e Natureza</p>
             </div>
             """, 
             unsafe_allow_html=True
@@ -253,10 +248,10 @@ else:
                 
         st.markdown(
             f"""
-            <div style='text-align: center; margin-top: 10px; margin-bottom: 15px; background: #164E3D; padding: 10px; border-radius: 8px;'>
-                <span style='color: #CBD5E1; font-size: 12px;'>Conectado como</span><br>
-                <b style='color: #FFFFFF; font-size: 14px;'>{st.session_state.username}</b> 
-                <span style='background-color: #22C55E; color: #0F382C; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{st.session_state.role.upper()}</span>
+            <div style='text-align: center; margin-top: 10px; margin-bottom: 15px; background: #1A232A; padding: 10px; border-radius: 8px; border: 1px solid #2A363F;'>
+                <span style='color: #9CA3AF; font-size: 12px;'>Conectado como</span><br>
+                <b style='color: #E2E8F0; font-size: 14px;'>{st.session_state.username}</b> 
+                <span style='background-color: #2E7D32; color: #FFF; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{st.session_state.role.upper()}</span>
             </div>
             """, 
             unsafe_allow_html=True
@@ -269,7 +264,7 @@ else:
         st.divider()
 
         if st.session_state.role == "admin":
-            st.markdown("<p style='color: #4ADE80; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;'> Painel Admin</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #2E7D32; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;'> Painel Admin</p>", unsafe_allow_html=True)
             
             with st.expander("🔑 Alterar minha senha"):
                 with st.form("form_pass"):
@@ -350,8 +345,8 @@ else:
                         st.markdown(
                             f"""
                             <div class="etiqueta-card">
-                                <h3 style="margin: 0; color: #15803D; font-size: 18px;">PATRIMÔNIO ISPN</h3>
-                                <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_titulo}</p>
+                                <h3 style="margin: 0; color: #2E7D32; font-size: 18px;">PATRIMÔNIO ISPN</h3>
+                                <p style="margin: 5px 0; font-weight: bold; font-size: 16px; color: #000000;">{item_titulo}</p>
                                 <img src="{barcode_url}" alt="Código de Barras" style="width: 80%; margin: 10px 0;">
                                 <p style="margin: 0; font-size: 12px; color: #555;">Etiqueta: {etiqueta_cod}</p>
                             </div>
