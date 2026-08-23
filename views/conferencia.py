@@ -3,10 +3,21 @@ import pandas as pd
 from datetime import datetime
 import importlib
 import base64
+import io
+
+# Importações para geração de PDF com ReportLab
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
 
 # Tenta importar bibliotecas de leitura de código de barras
 try:
-    from PIL import Image
+    from PIL import Image as PILImage
     import cv2
     import numpy as np
     HAS_VISION = True
@@ -35,13 +46,89 @@ def ler_codigo_imagem(image_file):
     if not HAS_VISION or not HAS_PYZBAR:
         return None
     try:
-        img = Image.open(image_file)
+        img = PILImage.open(image_file)
         decoded_objs = decode_barcode(img)
         for obj in decoded_objs:
             return obj.data.decode("utf-8").strip()
     except Exception:
         pass
     return None
+
+def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_relatorio="Relatório de Auditoria e Vistorias"):
+    """Gera um PDF formatado contendo dados e fotos das vistorias."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    story = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=16, leading=20, textColor=colors.HexColor("#1A365D"), alignment=1)
+    subtitle_style = ParagraphStyle('SubTitleStyle', parent=styles['Normal'], fontSize=9, leading=12, alignment=1, textColor=colors.gray)
+    text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=9, leading=13)
+    bold_style = ParagraphStyle('BoldStyle', parent=styles['Normal'], fontSize=9, leading=13, fontName="Helvetica-Bold")
+    
+    # Cabeçalho
+    story.append(Paragraph(f"<b>{titulo_relatorio}</b>", title_style))
+    story.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M:%S')}", subtitle_style))
+    story.append(Spacer(1, 15))
+
+    for idx, vist in enumerate(reversed(lista_vistorias)):
+        detalhes = vist.get("detalhes", "")
+        partes = [p.strip() for p in detalhes.split("|")]
+        dict_detalhes = {}
+        for p in partes:
+            if ":" in p:
+                k, v = p.split(":", 1)
+                dict_detalhes[k.strip()] = v.strip()
+
+        # Busca Categoria
+        categoria = "Não informada"
+        item_bd = next((i for i in patrimonio_db if str(i.get(col_etiqueta, '')) == str(vist.get("etiqueta", ""))), None)
+        if item_bd:
+            categoria = item_bd.get("categoria", item_bd.get("tipo", "Não informada"))
+
+        # Monta texto das informações
+        info_text = f"""
+        <b>Item:</b> {vist.get('item', 'N/I')}<br/>
+        <b>Código/Patrimônio:</b> {vist.get('etiqueta', 'N/A')}<br/>
+        <b>Categoria:</b> {categoria}<br/>
+        <b>Data/Hora:</b> {vist.get('data', 'N/A')}<br/>
+        <b>Estado de Conservação:</b> {dict_detalhes.get('Estado', 'N/I')}<br/>
+        <b>Status:</b> {dict_detalhes.get('Status', 'N/I')}<br/>
+        <b>Auditor:</b> {dict_detalhes.get('Auditor', 'N/I')}<br/>
+        <b>Observações:</b> {dict_detalhes.get('Obs', 'Nenhuma')}
+        """
+        p_info = Paragraph(info_text, text_style)
+
+        # Processa Foto para o PDF
+        img_element = Paragraph("<i>Sem foto de comprovação</i>", text_style)
+        foto = vist.get("foto") or vist.get("imagem")
+        if foto:
+            try:
+                if isinstance(foto, str) and not foto.startswith("http"):
+                    foto_bytes = base64.b64decode(foto)
+                else:
+                    foto_bytes = foto
+                
+                img_buffer = io.BytesIO(foto_bytes)
+                img_element = RLImage(img_buffer, width=130, height=100)
+            except Exception:
+                img_element = Paragraph("<i>Erro ao carregar imagem</i>", text_style)
+
+        # Tabela em Card para cada item
+        tabela_card = Table([[p_info, img_element]], colWidths=[380, 150])
+        tabela_card.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F8FAFC")),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#CBD5E1")),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('PADDING', (0,0), (-1,-1), 8),
+        ]))
+
+        story.append(tabela_card)
+        story.append(Spacer(1, 10))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
 
 def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
     st.title("📱 Conferência e Auditoria de Patrimônio")
@@ -53,7 +140,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
 
     df = pd.DataFrame(patrimonio_db)
     
-    # Mapeamento dinâmico e seguro de colunas
     col_etiqueta = 'patrimonio' if 'patrimonio' in df.columns else ('etiqueta' if 'etiqueta' in df.columns else df.columns[0])
     col_nome = 'descricao' if 'descricao' in df.columns else ('nome' if 'nome' in df.columns else ('item' if 'item' in df.columns else df.columns[1]))
     col_status = 'estado' if 'estado' in df.columns else ('status' if 'status' in df.columns else df.columns[2])
@@ -64,7 +150,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
         st.success(st.session_state.msg_conf_sucesso)
         del st.session_state.msg_conf_sucesso
 
-    # --- SELEÇÃO DO MÉTODO DE ENTRADA ---
     metodo = st.radio(
         "Como deseja identificar o patrimônio?",
         ["🔍 Digitar Código / Selecionar", "📷 Escanear Código via Câmera"],
@@ -90,7 +175,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
         if sel != "-- Digite ou Selecione --":
             codigo_buscado = sel.split(" - ")[0]
 
-    # --- PROCESSAMENTO DO ITEM ENCONTRADO ---
     if codigo_buscado:
         idx = next((i for i, item in enumerate(patrimonio_db) if str(item.get(col_etiqueta, '')).upper() == codigo_buscado.upper()), None)
         
@@ -100,7 +184,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
             item = patrimonio_db[idx]
             st.divider()
             
-            # Exibição dos Dados do Item Encontrado
             st.subheader(f"📦 {item.get(col_nome, 'Item')} ({item.get(col_etiqueta, '')})")
             
             c1, c2, c3 = st.columns(3)
@@ -131,7 +214,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                     
                 st.markdown("**📸 Foto de Comprovação da Vistoria (Opcional):**")
                 
-                # Escolha de método para anexar a foto
                 opcao_foto = st.radio(
                     "Como deseja anexar a foto?",
                     ["📤 Enviar Foto do Arquivo", "📷 Tirar Foto Agora"],
@@ -151,19 +233,16 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                     data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     usuario_auditor = st.session_state.get('username', 'usuario')
 
-                    # Prepara registro de vistoria
                     patrimonio_db[idx][col_status] = novo_status
                     patrimonio_db[idx]['ultimo_estado'] = estado_conservacao
                     patrimonio_db[idx]['ultima_vistoria'] = data_hora
                     patrimonio_db[idx]['vistoriado_por'] = usuario_auditor
 
-                    # Converte imagem para Base64 se enviada
                     foto_b64 = ""
                     if foto_vistoria is not None:
                         foto_bytes = foto_vistoria.getvalue()
                         foto_b64 = base64.b64encode(foto_bytes).decode('utf-8')
 
-                    # Adiciona no histórico
                     historico_db.append({
                         "data": data_hora,
                         "etiqueta": item.get(col_etiqueta),
@@ -173,7 +252,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                         "foto": foto_b64
                     })
 
-                    # Salva no banco de dados
                     if save_all_data:
                         users_db = st.session_state.get('users_db', {})
                         cidades = st.session_state.get('cidades_db', {})
@@ -186,30 +264,88 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
     st.divider()
     st.subheader("📸 Painel Exclusivo de Vistorias Realizadas")
 
-    # Filtra histórico por ações de Vistoria/Auditoria
     vistorias = [h for h in historico_db if "Vistoria" in h.get("acao", "") or "Auditoria" in h.get("acao", "")]
 
     if not vistorias:
         st.info("Nenhuma vistoria ou auditoria registrada até o momento.")
     else:
-        # Filtro opcional por item no histórico
-        opcoes_filtro = ["-- Exibir Todos --"] + sorted(list(set(f"{h.get('etiqueta')} - {h.get('item')}" for h in vistorias if h.get('etiqueta'))))
-        filtro_sel = st.selectbox("Filtrar por Código de Patrimônio:", opcoes_filtro)
+        # Prepara Mapeamento por Categoria
+        categorias_set = set()
+        vistorias_com_categoria = []
 
+        for v in vistorias:
+            cat = "Outros"
+            item_bd = next((i for i in patrimonio_db if str(i.get(col_etiqueta, '')) == str(v.get("etiqueta", ""))), None)
+            if item_bd:
+                cat = item_bd.get("categoria", item_bd.get("tipo", "Outros"))
+            categorias_set.add(cat)
+            
+            v_copy = dict(v)
+            v_copy["categoria"] = cat
+            vistorias_com_categoria.append(v_copy)
+
+        # --- SEÇÃO DE DOWNLOAD DE RELATÓRIOS PDF ---
+        col_down1, col_down2, col_down3 = st.columns(3)
+
+        with col_down1:
+            if HAS_REPORTLAB:
+                pdf_total = gerar_pdf_vistorias(
+                    vistorias, patrimonio_db, col_etiqueta, 
+                    titulo_relatorio="Relatório Geral de Vistorias e Auditorias"
+                )
+                st.download_button(
+                    label="📄 Baixar Toda a Auditoria (PDF)",
+                    data=pdf_total,
+                    file_name=f"auditoria_completa_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            else:
+                st.error("Instale 'reportlab' para baixar PDF (`pip install reportlab`).")
+
+        with col_down2:
+            lista_categorias = sorted(list(categorias_set))
+            cat_selecionada = st.selectbox(
+                "Selecionar Categoria para Baixar Vistoria/Auditoria:",
+                lista_categorias,
+                key="down_cat_pdf"
+            )
+
+        with col_down3:
+            st.write("")
+            st.write("")
+            if HAS_REPORTLAB:
+                vistorias_filtradas_cat = [v for v in vistorias_com_categoria if v["categoria"] == cat_selecionada]
+                pdf_cat = gerar_pdf_vistorias(
+                    vistorias_filtradas_cat, patrimonio_db, col_etiqueta, 
+                    titulo_relatorio=f"Relatório de Vistorias - Categoria: {cat_selecionada}"
+                )
+                st.download_button(
+                    label=f"📄 Baixar PDF ({cat_selecionada})",
+                    data=pdf_cat,
+                    file_name=f"vistorias_{cat_selecionada}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+
+        st.markdown("---")
+
+        # --- FILTRO EM TELA ---
+        opcoes_filtro = ["-- Exibir Todos --"] + sorted(list(set(f"{h.get('etiqueta')} - {h.get('item')}" for h in vistorias if h.get('etiqueta'))))
+        filtro_sel = st.selectbox("Filtrar por Código de Patrimônio na Tela:", opcoes_filtro)
+
+        vistorias_exibicao = vistorias
         if filtro_sel != "-- Exibir Todos --":
             cod_filtro = filtro_sel.split(" - ")[0]
-            vistorias = [h for h in vistorias if str(h.get("etiqueta")) == cod_filtro]
+            vistorias_exibicao = [h for h in vistorias if str(h.get("etiqueta")) == cod_filtro]
 
-        # Exibe em ordem decrescente (mais recentes primeiro)
-        for vist in reversed(vistorias):
+        # --- CARDS VISUAIS NA TELA ---
+        for vist in reversed(vistorias_exibicao):
             with st.container():
-                # Colunas [3, 1] mantêm texto próximo e foto compacta no lado direito
                 col_info, col_img = st.columns([3, 1])
 
-                # Processamento das informações do texto
                 detalhes = vist.get("detalhes", "")
                 partes = [p.strip() for p in detalhes.split("|")]
-                
                 dict_detalhes = {}
                 for p in partes:
                     if ":" in p:
@@ -232,14 +368,12 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                 with col_img:
                     foto = vist.get("foto") or vist.get("imagem")
                     if foto:
-                        # Se estiver em Base64, decodifica
                         if isinstance(foto, str) and not foto.startswith("http"):
                             try:
                                 foto = base64.b64decode(foto)
                             except Exception:
                                 pass
                         
-                        # Limita a largura em 220px para aprox. e manter o layout compacto
                         st.image(
                             foto,
                             caption=f"Foto da Vistoria ({vist.get('etiqueta', '')})",
