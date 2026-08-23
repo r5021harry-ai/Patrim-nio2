@@ -11,12 +11,10 @@ def render_dashboard(patrimonio_db):
         st.info("Nenhum patrimônio cadastrado para exibir no dashboard.")
         return
 
-    # Mapeamento de colunas flexível
     col_status = 'status' if 'status' in df.columns else df.columns[0]
     col_categoria = 'categoria' if 'categoria' in df.columns else df.columns[0]
     col_local = 'localizacao' if 'localizacao' in df.columns else ('cidade' if 'cidade' in df.columns else df.columns[0])
 
-    # Métricas Superiores
     total_bens = len(df)
     disponiveis = len(df[df[col_status].astype(str).str.lower() == 'disponível']) if col_status in df.columns else 0
     em_uso = len(df[df[col_status].astype(str).str.lower() == 'em uso']) if col_status in df.columns else 0
@@ -44,12 +42,12 @@ def render_dashboard(patrimonio_db):
                 values='Quantidade', 
                 hole=0.5,
                 color_discrete_sequence=px.colors.qualitative.Set2,
-                template="plotly_dark"
+                template="plotly_white"
             )
             fig_loc.update_layout(
-                paper_bgcolor='rgba(20, 27, 33, 1)',
-                plot_bgcolor='rgba(20, 27, 33, 1)',
-                font=dict(color="#E2E8F0")
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
+                font=dict(color="#0F172A")
             )
             st.plotly_chart(fig_loc, use_container_width=True)
 
@@ -65,12 +63,12 @@ def render_dashboard(patrimonio_db):
                 color=col_status,
                 barmode='stack',
                 color_discrete_sequence=px.colors.qualitative.Safe,
-                template="plotly_dark"
+                template="plotly_white"
             )
             fig_cat.update_layout(
-                paper_bgcolor='rgba(20, 27, 33, 1)',
-                plot_bgcolor='rgba(20, 27, 33, 1)',
-                font=dict(color="#E2E8F0"),
+                paper_bgcolor='#FFFFFF',
+                plot_bgcolor='#FFFFFF',
+                font=dict(color="#0F172A"),
                 xaxis_title="Categoria",
                 yaxis_title="Quantidade"
             )
