@@ -99,10 +99,17 @@ def login_screen():
 if not st.session_state.logged_in:
     login_screen()
 else:
-    # Sidebar
+    # --- SIDEBAR CENTRALIZADA ---
     if os.path.exists("logo.png"):
-        st.sidebar.image("logo.png", width=140)
-    st.sidebar.markdown(f"👤 Logado como: **{st.session_state.username}** (`{st.session_state.role.upper()}`)")
+        side_c1, side_c2, side_c3 = st.sidebar.columns([1, 2, 1])
+        with side_c2:
+            st.image("logo.png", use_container_width=True)
+            
+    st.sidebar.markdown(
+        f"<div style='text-align: center; margin-bottom: 10px;'>👤 Logado como: <b>{st.session_state.username}</b> (<code>{st.session_state.role.upper()}</code>)</div>", 
+        unsafe_allow_html=True
+    )
+    
     if st.sidebar.button("🚪 Sair", use_container_width=True):
         st.session_state.logged_in = False
         st.rerun()
