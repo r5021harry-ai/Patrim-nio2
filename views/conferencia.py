@@ -4,6 +4,14 @@ from datetime import datetime
 import importlib
 import base64
 import io
+import pytz
+
+# Configuração do fuso horário do Brasil
+TZ_BR = pytz.timezone("America/Sao_Paulo")
+
+def obter_agora_br():
+    """Retorna o datetime atual formatado no fuso horário do Brasil."""
+    return datetime.now(TZ_BR)
 
 # Importações para geração de PDF com ReportLab
 try:
@@ -66,9 +74,10 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
     text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=9, leading=13)
     bold_style = ParagraphStyle('BoldStyle', parent=styles['Normal'], fontSize=9, leading=13, fontName="Helvetica-Bold")
     
-    # Cabeçalho
+    # Cabeçalho com Horário Oficial do Brasil
+    agora_br = obter_agora_br().strftime('%d/%m/%Y às %H:%M:%S')
     story.append(Paragraph(f"<b>{titulo_relatorio}</b>", title_style))
-    story.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M:%S')}", subtitle_style))
+    story.append(Paragraph(f"Gerado em: {agora_br}", subtitle_style))
     story.append(Spacer(1, 15))
 
     for idx, vist in enumerate(reversed(lista_vistorias)):
@@ -86,13 +95,25 @@ def gerar_pdf_vistorias(lista_vistorias, patrimonio_db, col_etiqueta, titulo_rel
         if item_bd:
             categoria = item_bd.get("categoria", item_bd.get("tipo", "Não informada"))
 
+        # Formata Data/Hora para o padrão brasileiro
+        data_orig = vist.get('data', 'N/A')
+        try:
+            dt_obj = datetime.strptime(data_orig, "%Y-%m-%d %H:%M:%S")
+            data_formatada = dt_obj.strftime("%d/%m/%Y às %H:%M:%S")
+        except Exception:
+            data_formatada = data_orig
+
+        # Trata emojis para evitar caracteres indeferidos (■) no PDF
+        estado = dict_detalhes.get('Estado', 'N/I')
+        estado_limpo = estado.replace("🟢", "").replace("🟡", "").replace("🔴", "").replace("⚠️", "").strip()
+
         # Monta texto das informações
         info_text = f"""
         <b>Item:</b> {vist.get('item', 'N/I')}<br/>
         <b>Código/Patrimônio:</b> {vist.get('etiqueta', 'N/A')}<br/>
         <b>Categoria:</b> {categoria}<br/>
-        <b>Data/Hora:</b> {vist.get('data', 'N/A')}<br/>
-        <b>Estado de Conservação:</b> {dict_detalhes.get('Estado', 'N/I')}<br/>
+        <b>Data/Hora:</b> {data_formatada}<br/>
+        <b>Estado de Conservação:</b> {estado_limpo}<br/>
         <b>Status:</b> {dict_detalhes.get('Status', 'N/I')}<br/>
         <b>Auditor:</b> {dict_detalhes.get('Auditor', 'N/I')}<br/>
         <b>Observações:</b> {dict_detalhes.get('Obs', 'Nenhuma')}
@@ -230,7 +251,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                 submit = st.form_submit_button("Registrar Conferência", type="primary", use_container_width=True)
 
                 if submit:
-                    data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    data_hora = obter_agora_br().strftime("%Y-%m-%d %H:%M:%S")
                     usuario_auditor = st.session_state.get('username', 'usuario')
 
                     patrimonio_db[idx][col_status] = novo_status
@@ -284,7 +305,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
             v_copy["categoria"] = cat
             vistorias_com_categoria.append(v_copy)
 
-        # --- SEÇÃO DE DOWNLOAD DE RELATÓRIOS PDF ALINHADOS ---
+        # --- SEÇÃO DE DOWNLOAD DE RELATÓRIOS PDF ---
         col_down1, col_down2, col_down3 = st.columns([1, 1, 1], vertical_alignment="bottom")
 
         with col_down1:
@@ -296,12 +317,12 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                 st.download_button(
                     label="📄 Baixar Toda a Auditoria (PDF)",
                     data=pdf_total,
-                    file_name=f"auditoria_completa_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    file_name=f"auditoria_completa_{obter_agora_br().strftime('%Y%m%d_%H%M')}.pdf",
                     mime="application/pdf",
                     use_container_width=True
                 )
             else:
-                st.error("Instale 'reportlab' para baixar PDF.")
+                st.error("Instale 'reportlab' para baixar PDF (`pip install reportlab`).")
 
         with col_down2:
             lista_categorias = sorted(list(categorias_set))
@@ -321,7 +342,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None):
                 st.download_button(
                     label=f"📄 Baixar PDF ({cat_selecionada})",
                     data=pdf_cat,
-                    file_name=f"vistorias_{cat_selecionada}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                    file_name=f"vistorias_{cat_selecionada}_{obter_agora_br().strftime('%Y%m%d_%H%M')}.pdf",
                     mime="application/pdf",
                     use_container_width=True
                 )
