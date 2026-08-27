@@ -22,38 +22,51 @@ def processar_moeda(valor_input):
     except ValueError:
         return str(valor_input), 0.0
 
+def auto_formatar_valor_cadastro():
+    val = st.session_state.get("campo_valor_raw", "")
+    txt_fmt, _ = processar_moeda(val)
+    if txt_fmt:
+        st.session_state["campo_valor_raw"] = txt_fmt
+
 def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
     
+    # Inicializa estado da chave do campo se não existir
+    if "campo_valor_raw" not in st.session_state:
+        st.session_state["campo_valor_raw"] = ""
+
     # --- FORMULÁRIO ABERTO POR PADRÃO ---
     with st.expander("Cadastrar Novo Patrimônio", expanded=True):
-        with st.form("form_novo_patrimonio"):
-            st.markdown("### Dados da Nota Fiscal / Compra")
-            
-            col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
-            with col_nf1:
-                numero_nf = st.text_input("Nº NF")
-            with col_nf2:
-                fornecedor = st.text_input("Nome do Fornecedor")
-            with col_nf3:
-                valor_raw = st.text_input(
-                    "Valor Unitário do Bem (R$)",
-                    placeholder="Ex: 1500 ou 1500,85",
-                    help="Digite 1500 para R$ 1.500,00 ou 1500,85 para R$ 1.500,85"
-                )
-
-            # Processa a formatação da moeda e o float correspondente
-            valor_formatado_exibicao, valor_unitario = processar_moeda(valor_raw)
-            if valor_formatado_exibicao:
-                st.caption(f"Valor formatado: **{valor_formatado_exibicao}**")
-
-            # Upload da Nota Fiscal
-            arquivo_nf = st.file_uploader(
-                "Upload da NOTA FISCAL (PDF/Imagem)", 
-                type=["pdf", "png", "jpg", "jpeg"],
-                help="Selecione o arquivo da Nota Fiscal (máx. 200MB)"
+        
+        # Colocamos o campo de valor FORA do st.form para permitir atualização em tempo real (on_change)
+        st.markdown("### Dados da Nota Fiscal / Compra")
+        col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
+        
+        with col_nf1:
+            numero_nf = st.text_input("Nº NF", key="input_numero_nf")
+        with col_nf2:
+            fornecedor = st.text_input("Nome do Fornecedor", key="input_nome_fornecedor")
+        with col_nf3:
+            st.text_input(
+                "Valor Unitário do Bem (R$)",
+                key="campo_valor_raw",
+                placeholder="Ex: 1500 ou 1500,85",
+                on_change=auto_formatar_valor_cadastro,
+                help="Digite o valor e pressione Enter/Tab para formatar em R$"
             )
 
-            st.markdown("---")
+        # Converte o valor atual do campo para salvar no banco
+        valor_formatado_exibicao, valor_unitario = processar_moeda(st.session_state.get("campo_valor_raw", ""))
+
+        arquivo_nf = st.file_uploader(
+            "Upload da NOTA FISCAL (PDF/Imagem)", 
+            type=["pdf", "png", "jpg", "jpeg"],
+            help="Selecione o arquivo da Nota Fiscal (máx. 200MB)",
+            key="input_arquivo_nf"
+        )
+
+        st.markdown("---")
+        
+        with st.form("form_detalhes_patrimonio"):
             st.markdown("### Detalhes do Patrimônio")
 
             col_pat1, col_pat2 = st.columns(2)
@@ -115,6 +128,8 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         if save_callback:
                             save_callback()
                             
+                        # Limpa o campo de valor após salvar
+                        st.session_state["campo_valor_raw"] = ""
                         st.success(f"Patrimônio '{nome}' cadastrado com sucesso!")
                         st.rerun()
 
@@ -155,7 +170,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
     st.subheader(f"Itens Cadastrados ({len(df_filtrado)})")
     st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
 
-    # --- SEÇÃO DE EDICÃO E REMOÇÃO ---
+    # --- SEÇÃO DE EDIÇÃO E REMOÇÃO ---
     with st.expander("Editar ou Remover Patrimônio", expanded=False):
         codigos_disponiveis = [str(item.get("etiqueta")) for item in patrimonio_db if "etiqueta" in item]
         
@@ -176,7 +191,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         e_nf = st.text_input("Nº NF", value=item_obj.get("numero_nf", ""))
                         e_forn = st.text_input("Fornecedor", value=item_obj.get("fornecedor", ""))
                         
-                        # Recupera o valor cadastrado e o formata para inicializar no campo de edição
                         val_atual = item_obj.get("valor_unitario", item_obj.get("valor", 0.0))
                         val_str_inicial, _ = processar_moeda(val_atual)
                         
