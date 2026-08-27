@@ -1,9 +1,14 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from fpdf import FPDF
 import tempfile
 import os
+
+def obter_hora_brasil():
+    """Retorna o datetime atual ajustado para o fuso horário de Brasília (UTC-3)."""
+    return datetime.now(ZoneInfo("America/Sao_Paulo"))
 
 def normalizar_texto(texto):
     """
@@ -26,7 +31,7 @@ class PDFRelatorioVistoria(FPDF):
         self.set_font('Arial', 'B', 14)
         self.cell(0, 10, normalizar_texto('RELATÓRIO DE AUDITORIA E VISTORIA DE PATRIMÔNIO'), 0, 1, 'C')
         self.set_font('Arial', 'I', 9)
-        dt_str = datetime.now().strftime("%d/%m/%Y as %H:%M:%S")
+        dt_str = obter_hora_brasil().strftime("%d/%m/%Y as %H:%M:%S")
         self.cell(0, 5, normalizar_texto(f'Gerado em: {dt_str}'), 0, 1, 'C')
         self.ln(5)
 
@@ -217,7 +222,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
                                 fotos_anexadas.append({"nome": f.name, "bytes": f.getvalue()})
 
                         patrimonio_db[idx_item]["estado"] = novo_estado
-                        dt_atual = datetime.now().strftime("%d/%m/%Y %H:%M")
+                        dt_atual = obter_hora_brasil().strftime("%d/%m/%Y %H:%M")
 
                         registro_auditoria = {
                             "etiqueta": etiqueta_sel,
