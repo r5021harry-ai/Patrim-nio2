@@ -12,7 +12,6 @@ def processar_moeda(valor_input):
 
     val_str = str(valor_input).replace("R$", "").strip()
 
-    # Trata separadores do padrão brasileiro (1.500,85 -> 1500.85)
     if "," in val_str:
         val_str = val_str.replace(".", "").replace(",", ".")
 
@@ -29,8 +28,8 @@ def auto_formatar_valor_cadastro():
     if txt_fmt:
         st.session_state["campo_valor_raw"] = txt_fmt
 
-def resetar_campos_cadastro():
-    """Limpa com segurança todas as chaves de input do formulário para o próximo cadastro."""
+def resetar_campos_callback():
+    """Limpa o estado dos campos com segurança via Callback."""
     st.session_state["input_numero_nf"] = ""
     st.session_state["input_nome_fornecedor"] = ""
     st.session_state["campo_valor_raw"] = ""
@@ -56,35 +55,32 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
     # --- FORMULÁRIO ABERTO POR PADRÃO ---
     with st.expander("Cadastrar Novo Patrimônio", expanded=True):
         
-        st.markdown("### Dados da Nota Fiscal / Compra")
-        col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
-        
-        with col_nf1:
-            numero_nf = st.text_input("Nº NF", key="input_numero_nf")
-        with col_nf2:
-            fornecedor = st.text_input("Nome do Fornecedor", key="input_nome_fornecedor")
-        with col_nf3:
-            st.text_input(
-                "Valor Unitário do Bem (R$)",
-                key="campo_valor_raw",
-                placeholder="Ex: 1500 ou 1500,85",
-                on_change=auto_formatar_valor_cadastro,
-                help="Digite o valor e pressione Enter/Tab para formatar em R$"
+        # Colocando todo o formulário dentro do bloco st.form para evitar conflito de estado
+        with st.form("form_cadastro_patrimonio"):
+            st.markdown("### Dados da Nota Fiscal / Compra")
+            col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
+            
+            with col_nf1:
+                numero_nf = st.text_input("Nº NF", key="input_numero_nf")
+            with col_nf2:
+                fornecedor = st.text_input("Nome do Fornecedor", key="input_nome_fornecedor")
+            with col_nf3:
+                st.text_input(
+                    "Valor Unitário do Bem (R$)",
+                    key="campo_valor_raw",
+                    placeholder="Ex: 1500 ou 1500,85",
+                    on_change=auto_formatar_valor_cadastro,
+                    help="Digite o valor e pressione Enter/Tab para formatar em R$"
+                )
+
+            arquivo_nf = st.file_uploader(
+                "Upload da NOTA FISCAL (PDF/Imagem)", 
+                type=["pdf", "png", "jpg", "jpeg"],
+                help="Selecione o arquivo da Nota Fiscal (máx. 200MB)",
+                key="input_arquivo_nf"
             )
 
-        # Converte o valor atual do campo para salvar no banco
-        valor_formatado_exibicao, valor_unitario = processar_moeda(st.session_state.get("campo_valor_raw", ""))
-
-        arquivo_nf = st.file_uploader(
-            "Upload da NOTA FISCAL (PDF/Imagem)", 
-            type=["pdf", "png", "jpg", "jpeg"],
-            help="Selecione o arquivo da Nota Fiscal (máx. 200MB)",
-            key="input_arquivo_nf"
-        )
-
-        st.markdown("---")
-        
-        with st.form("form_detalhes_patrimonio"):
+            st.markdown("---")
             st.markdown("### Detalhes do Patrimônio")
 
             col_pat1, col_pat2 = st.columns(2)
@@ -119,6 +115,8 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                     if etiqueta_existe:
                         st.error(f"Já existe um patrimônio cadastrado com a etiqueta '{etiqueta}'.")
                     else:
+                        _, valor_unitario = processar_moeda(st.session_state.get("campo_valor_raw", ""))
+                        
                         nf_dados = None
                         if arquivo_nf is not None:
                             nf_dados = {
@@ -145,7 +143,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         
                         patrimonio_db.append(novo_item)
                         
-                        # Histórico
                         historico_db.append({
                             "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
                             "usuario": st.session_state.get("username", "Sistema"),
@@ -157,13 +154,9 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         if save_callback:
                             save_callback()
                             
-                        # Notificação em Toast (flutuante) + Sucesso fixo
+                        # Limpa o estado e recarrega a página de forma limpa
+                        resetar_campos_callback()
                         st.toast(f"Patrimônio '{nome}' cadastrado com sucesso!", icon="✅")
-                        
-                        # Limpa os campos de forma segura
-                        resetar_campos_cadastro()
-                        
-                        st.success(f"Patrimônio '{etiqueta}' cadastrado com sucesso! O formulário foi limpo para o próximo cadastro.")
                         st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -211,7 +204,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
             etiqueta_item = item.get("etiqueta", "N/A")
             nome_item = item.get("nome", "Item sem nome")
             
-            # Exibe cada item em um container organizador
             with st.container(border=True):
                 c_det, c_arquivo = st.columns([2, 1])
                 
@@ -236,7 +228,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                             key=f"dl_nf_list_{etiqueta_item}_{idx}"
                         )
                         
-                        # Se for imagem, exibe pré-visualização
                         if any(nome_arq.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]):
                             st.image(conteudo_bytes, caption=f"NF: {nome_arq}", use_container_width=True)
                         else:
