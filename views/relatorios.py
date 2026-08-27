@@ -1,68 +1,76 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 
-def render_relatorios(patrimonio_db, historico_db, cidades_db=None):
-    st.title("📑 Relatórios do Sistema")
+def render_relatorios(patrimonio_db, historico_db):
+    st.title("Relatórios do Sistema")
     st.caption("Consulte a relação geral dos bens e o histórico de movimentações do sistema.")
 
-    tab1, tab2 = st.tabs([
-        "🔍 Relação Geral & Filtros", 
-        "📜 Histórico Geral do Sistema"
-    ])
+    tab_geral, tab_historico = st.tabs(["Relação Geral & Filtros", "Histórico Geral do Sistema"])
 
-    # --- TAB 1: RELAÇÃO GERAL & FILTROS ---
-    with tab1:
-        st.subheader("📊 Relação Geral de Patrimônios")
-        
+    with tab_geral:
+        st.subheader("Relação Geral de Patrimônios")
+
         if not patrimonio_db:
-            st.warning("Nenhum patrimônio cadastrado.")
+            st.info("Nenhum patrimônio cadastrado.")
         else:
             df = pd.DataFrame(patrimonio_db)
-            
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                filtro_cidade = st.multiselect(
-                    "Filtrar por Cidade / Unidade:",
-                    options=sorted(df['cidade'].unique().tolist()) if 'cidade' in df.columns else []
-                )
-            with c2:
-                filtro_estado = st.multiselect(
-                    "Filtrar por Status / Estado:",
-                    options=sorted(df['estado'].unique().tolist()) if 'estado' in df.columns else []
-                )
-            with c3:
-                filtro_cat = st.multiselect(
-                    "Filtrar por Categoria:",
-                    options=sorted(df['categoria'].unique().tolist()) if 'categoria' in df.columns else []
-                )
 
+            # Filtros dinâmicos
+            col_f1, col_f2 = st.columns(2)
+            
+            col_status = next((c for c in ['status', 'estado', 'Status', 'Estado'] if c in df.columns), None)
+            col_local = next((c for c in ['localizacao', 'cidade', 'Localização', 'Cidade'] if c in df.columns), None)
+
+            with col_f1:
+                if col_status:
+                    opcoes_status = ["Todos"] + sorted(df[col_status].dropna().astype(str).unique().tolist())
+                    filtro_status = st.selectbox("Filtrar por Status:", opcoes_status)
+                else:
+                    filtro_status = "Todos"
+
+            with col_f2:
+                if col_local:
+                    opcoes_local = ["Todos"] + sorted(df[col_local].dropna().astype(str).unique().tolist())
+                    filtro_local = st.selectbox("Filtrar por Localização:", opcoes_local)
+                else:
+                    filtro_local = "Todos"
+
+            # Aplicação dos filtros
             df_filtrado = df.copy()
-            if filtro_cidade and 'cidade' in df_filtrado.columns:
-                df_filtrado = df_filtrado[df_filtrado['cidade'].isin(filtro_cidade)]
-            if filtro_estado and 'estado' in df_filtrado.columns:
-                df_filtrado = df_filtrado[df_filtrado['estado'].isin(filtro_estado)]
-            if filtro_cat and 'categoria' in df_filtrado.columns:
-                df_filtrado = df_filtrado[df_filtrado['categoria'].isin(filtro_cat)]
+            if filtro_status != "Todos" and col_status:
+                df_filtrado = df_filtrado[df_filtrado[col_status].astype(str) == filtro_status]
+            if filtro_local != "Todos" and col_local:
+                df_filtrado = df_filtrado[df_filtrado[col_local].astype(str) == filtro_local]
 
-            st.dataframe(df_filtrado, use_container_width=True)
-            
-            # Exportar CSV
+            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+
+            # Exportação CSV
             csv = df_filtrado.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 Exportar Tabela Filtrada (CSV)",
+                label="Baixar Relatório (CSV)",
                 data=csv,
-                file_name=f"relatorio_patrimonio_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name="relatorio_patrimonio.csv",
                 mime="text/csv"
             )
 
-    # --- TAB 2: HISTÓRICO GERAL DO SISTEMA ---
-    with tab2:
-        st.subheader("📜 Log de Atividades e Histórico Geral")
+    with tab_historico:
+        st.subheader("Histórico de Movimentações")
+
         if not historico_db:
-            st.info("Nenhum histórico registrado no sistema até o momento.")
+            st.info("Nenhuma movimentação registrada até o momento.")
         else:
             df_hist = pd.DataFrame(historico_db)
-            if "foto" in df_hist.columns:
-                df_hist = df_hist.drop(columns=["foto"])
-            st.dataframe(df_hist, use_container_width=True)
+            
+            # Ordenar mais recentes primeiro, se a coluna existir
+            if "data_hora" in df_hist.columns:
+                df_hist = df_hist.sort_values(by="data_hora", ascending=False)
+
+            st.dataframe(df_hist, use_container_width=True, hide_index=True)
+
+            csv_hist = df_hist.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Baixar Histórico (CSV)",
+                data=csv_hist,
+                file_name="historico_patrimonio.csv",
+                mime="text/csv"
+            )
