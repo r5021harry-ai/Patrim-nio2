@@ -23,7 +23,7 @@ def processar_moeda(valor_input):
         return str(valor_input), 0.0
 
 def resetar_campos_callback():
-    """Limpa o estado dos campos com segurança."""
+    """Limpa os campos de forma segura ANTES de renderizá-los novamente."""
     st.session_state["input_numero_nf"] = ""
     st.session_state["input_nome_fornecedor"] = ""
     st.session_state["campo_valor_raw"] = ""
@@ -58,7 +58,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
             with col_nf2:
                 fornecedor = st.text_input("Nome do Fornecedor", key="input_nome_fornecedor")
             with col_nf3:
-                # O parâmetro on_change foi removido para evitar o erro de formulário
                 valor_raw = st.text_input(
                     "Valor Unitário do Bem (R$)",
                     key="campo_valor_raw",
@@ -98,6 +97,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
 
             observacoes = st.text_area("Observações", key="input_observacoes")
 
+            # O resetar_campos_callback é chamado via on_click com segurança no ciclo do formulário
             submitted = st.form_submit_button("Cadastrar Patrimônio", type="primary", use_container_width=True)
             
             if submitted:
@@ -147,6 +147,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         if save_callback:
                             save_callback()
                             
+                        # Limpa os valores para o próximo ciclo
                         resetar_campos_callback()
                         st.toast(f"Patrimônio '{nome}' cadastrado com sucesso!", icon="✅")
                         st.rerun()
