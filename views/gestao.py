@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
 def processar_moeda(valor_input):
     """
@@ -28,16 +29,33 @@ def auto_formatar_valor_cadastro():
     if txt_fmt:
         st.session_state["campo_valor_raw"] = txt_fmt
 
+def resetar_campos_cadastro():
+    """Limpa com segurança todas as chaves de input do formulário para o próximo cadastro."""
+    st.session_state["input_numero_nf"] = ""
+    st.session_state["input_nome_fornecedor"] = ""
+    st.session_state["campo_valor_raw"] = ""
+    st.session_state["input_etiqueta"] = ""
+    st.session_state["input_nome"] = ""
+    st.session_state["input_setor"] = ""
+    st.session_state["input_responsavel"] = "Equipe ISPN"
+    st.session_state["input_placa"] = ""
+    st.session_state["input_observacoes"] = ""
+    if "input_arquivo_nf" in st.session_state:
+        del st.session_state["input_arquivo_nf"]
+
 def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
     
-    # Inicializa estado da chave do campo se não existir
+    # Inicializa estado das chaves de input se não existirem
     if "campo_valor_raw" not in st.session_state:
         st.session_state["campo_valor_raw"] = ""
+    if "input_numero_nf" not in st.session_state:
+        st.session_state["input_numero_nf"] = ""
+    if "input_nome_fornecedor" not in st.session_state:
+        st.session_state["input_nome_fornecedor"] = ""
 
     # --- FORMULÁRIO ABERTO POR PADRÃO ---
     with st.expander("Cadastrar Novo Patrimônio", expanded=True):
         
-        # Colocamos o campo de valor FORA do st.form para permitir atualização em tempo real (on_change)
         st.markdown("### Dados da Nota Fiscal / Compra")
         col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
         
@@ -74,21 +92,22 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
             locais = cidades_db.get("lista", ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]) if isinstance(cidades_db, dict) else ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]
 
             with col_pat1:
-                etiqueta = st.text_input("Patrimônio (Código/Etiqueta) *")
-                nome = st.text_input("Descrição do bem *")
+                etiqueta = st.text_input("Patrimônio (Código/Etiqueta) *", key="input_etiqueta")
+                nome = st.text_input("Descrição do bem *", key="input_nome")
                 categoria = st.selectbox(
                     "Categoria do bem", 
-                    ["Informática", "Mobiliário", "Veículos", "Eletrodomésticos", "Outros"]
+                    ["Informática", "Mobiliário", "Veículos", "Eletrodomésticos", "Outros"],
+                    key="input_categoria"
                 )
-                setor = st.text_input("Setor")
+                setor = st.text_input("Setor", key="input_setor")
 
             with col_pat2:
-                localizacao = st.selectbox("Localização / Cidade", locais)
-                responsavel = st.text_input("Responsável", value="Equipe ISPN")
-                estado = st.selectbox("Situação / Status", ["Em Uso", "Em Manutenção", "Inservível", "Baixado"])
-                placa = st.text_input("Placa (Se Veículo)")
+                localizacao = st.selectbox("Localização / Cidade", locais, key="input_localizacao")
+                responsavel = st.text_input("Responsável", key="input_responsavel")
+                estado = st.selectbox("Situação / Status", ["Em Uso", "Em Manutenção", "Inservível", "Baixado"], key="input_estado")
+                placa = st.text_input("Placa (Se Veículo)", key="input_placa")
 
-            observacoes = st.text_area("Observações")
+            observacoes = st.text_area("Observações", key="input_observacoes")
 
             submitted = st.form_submit_button("Cadastrar Patrimônio", type="primary", use_container_width=True)
             
@@ -104,7 +123,8 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         if arquivo_nf is not None:
                             nf_dados = {
                                 "nome_arquivo": arquivo_nf.name,
-                                "conteudo": arquivo_nf.getvalue()
+                                "conteudo": arquivo_nf.getvalue(),
+                                "tipo": arquivo_nf.type
                             }
 
                         novo_item = {
@@ -125,12 +145,25 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         
                         patrimonio_db.append(novo_item)
                         
+                        # Histórico
+                        historico_db.append({
+                            "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "usuario": st.session_state.get("username", "Sistema"),
+                            "acao": "Cadastro",
+                            "etiqueta": etiqueta.strip(),
+                            "detalhes": f"Patrimônio '{nome.strip()}' cadastrado com sucesso."
+                        })
+
                         if save_callback:
                             save_callback()
                             
-                        # Limpa o campo de valor após salvar
-                        st.session_state["campo_valor_raw"] = ""
-                        st.success(f"Patrimônio '{nome}' cadastrado com sucesso!")
+                        # Notificação em Toast (flutuante) + Sucesso fixo
+                        st.toast(f"Patrimônio '{nome}' cadastrado com sucesso!", icon="✅")
+                        
+                        # Limpa os campos de forma segura
+                        resetar_campos_cadastro()
+                        
+                        st.success(f"Patrimônio '{etiqueta}' cadastrado com sucesso! O formulário foi limpo para o próximo cadastro.")
                         st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -145,6 +178,8 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
         item_copia = item.copy()
         if isinstance(item_copia.get("arquivo_nf"), dict):
             item_copia["arquivo_nf"] = item_copia["arquivo_nf"].get("nome_arquivo", "Anexado")
+        else:
+            item_copia["arquivo_nf"] = "Não anexado"
         dados_tabela.append(item_copia)
 
     df = pd.DataFrame(dados_tabela)
@@ -169,6 +204,45 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
 
     st.subheader(f"Itens Cadastrados ({len(df_filtrado)})")
     st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+
+    # --- PAINEL DE NOTAS FISCAIS E DETALHES DOS BENS ---
+    with st.expander(" Visualizar Notas Fiscais e Detalhes dos Itens", expanded=False):
+        for idx, item in enumerate(patrimonio_db):
+            etiqueta_item = item.get("etiqueta", "N/A")
+            nome_item = item.get("nome", "Item sem nome")
+            
+            # Exibe cada item em um container organizador
+            with st.container(border=True):
+                c_det, c_arquivo = st.columns([2, 1])
+                
+                with c_det:
+                    st.markdown(f"#### 📌 `{etiqueta_item}` - {nome_item}")
+                    st.write(f"**Fornecedor:** {item.get('fornecedor', '-')} | **Nº NF:** {item.get('numero_nf', '-')}")
+                    st.write(f"**Valor:** R$ {float(item.get('valor_unitario', 0.0)):,.2f} | **Localização:** {item.get('localizacao', '-')}")
+                    st.write(f"**Responsável:** {item.get('responsavel', '-')} | **Status:** {item.get('estado', '-')}")
+                    
+                with c_arquivo:
+                    nf_info = item.get("arquivo_nf")
+                    if isinstance(nf_info, dict) and "conteudo" in nf_info:
+                        nome_arq = nf_info.get("nome_arquivo", "nota_fiscal")
+                        conteudo_bytes = nf_info.get("conteudo")
+                        mime_tipo = nf_info.get("tipo", "application/pdf")
+                        
+                        st.download_button(
+                            label=f"⬇️ Baixar NF ({nome_arq})",
+                            data=conteudo_bytes,
+                            file_name=nome_arq,
+                            mime=mime_tipo,
+                            key=f"dl_nf_list_{etiqueta_item}_{idx}"
+                        )
+                        
+                        # Se for imagem, exibe pré-visualização
+                        if any(nome_arq.lower().endswith(ext) for ext in [".png", ".jpg", ".jpeg"]):
+                            st.image(conteudo_bytes, caption=f"NF: {nome_arq}", use_container_width=True)
+                        else:
+                            st.caption(" Documento em PDF disponível para download.")
+                    else:
+                        st.caption("⚠️ Nenhuma Nota Fiscal anexada para este item.")
 
     # --- SEÇÃO DE EDIÇÃO E REMOÇÃO ---
     with st.expander("Editar ou Remover Patrimônio", expanded=False):
@@ -215,7 +289,8 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                             if e_arquivo is not None:
                                 patrimonio_db[idx_item]["arquivo_nf"] = {
                                     "nome_arquivo": e_arquivo.name,
-                                    "conteudo": e_arquivo.getvalue()
+                                    "conteudo": e_arquivo.getvalue(),
+                                    "tipo": e_arquivo.type
                                 }
 
                             patrimonio_db[idx_item]["nome"] = e_nome
