@@ -134,14 +134,18 @@ def render_etiquetas(patrimonio_db, logo_path=None):
 
                 val_fmt = f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
                 
-                # --- TRATAMENTO CORRIGIDO PARA O ARQUIVO NF ---
+                # --- TRATAMENTO CORRIGIDO DA VARIAVEL ARQUIVO_NF ---
                 raw_nf = item.get('arquivo_nf')
+                nf_nome = "Nenhum arquivo anexado"
+                nf_conteudo = None
+                nf_mime = "application/pdf"
+
                 if isinstance(raw_nf, dict):
-                    nf_arq = raw_nf.get("nome_arquivo", "Anexado")
+                    nf_nome = raw_nf.get("nome_arquivo", "Nota_Fiscal.pdf")
+                    nf_conteudo = raw_nf.get("conteudo")
+                    nf_mime = raw_nf.get("tipo", "application/pdf")
                 elif isinstance(raw_nf, str) and raw_nf.strip():
-                    nf_arq = raw_nf
-                else:
-                    nf_arq = "Nenhum arquivo anexado"
+                    nf_nome = raw_nf
 
                 st.markdown(f"""
                 **Código:** `{item.get('etiqueta', 'N/A')}`  
@@ -151,7 +155,7 @@ def render_etiquetas(patrimonio_db, logo_path=None):
                 **Número NF:** {item.get('numero_nf', 'N/A')}  
                 **Fornecedor:** {item.get('fornecedor', 'N/A')}  
                 **Valor Unitário:** {val_fmt}  
-                **Arquivo NF:** {nf_arq}  
+                **Arquivo NF:** {nf_nome}  
                 **Localização:** {item.get('localizacao', 'N/A')}  
                 **Responsável:** {item.get('responsavel', 'N/A')}  
                 **Estado:** {item.get('estado', 'N/A')}  
@@ -159,7 +163,17 @@ def render_etiquetas(patrimonio_db, logo_path=None):
                 **Observações:** {item.get('observacoes') or 'Sem observações'}
                 """)
 
+                # Botão adicional para baixar a Nota Fiscal caso exista o arquivo armazenado
+                if nf_conteudo:
+                    st.download_button(
+                        label=f"📄 Baixar {nf_nome}",
+                        data=nf_conteudo,
+                        file_name=nf_nome,
+                        mime=nf_mime,
+                        key="btn_download_nf_arquivo"
+                    )
+
 def render_relatorios(patrimonio_db, *args, **kwargs):
-    """Função principal chamada para renderizar a página de relatorios/etiquetas."""
+    """Função principal chamada para renderizar a página de relatórios/etiquetas."""
     st.title("Relatórios e Etiquetas")
     render_etiquetas(patrimonio_db)
