@@ -4,8 +4,8 @@ import pandas as pd
 def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
     st.title("📦 Gestão de Patrimônio")
     
-    # --- BARRA SUPERIOR DE AÇÕES E CADASTRO ---
-    with st.expander("➕ Cadastrar Novo Patrimônio", expanded=False):
+    # --- FORMULÁRIO ABERTO POR PADRÃO (expanded=True) ---
+    with st.expander("➕ Cadastrar Novo Patrimônio", expanded=True):
         with st.form("form_novo_patrimonio"):
             st.markdown("### 📄 Dados da Nota Fiscal / Compra")
             
@@ -23,7 +23,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                     format="%.2f"
                 )
 
-            # Campo para envio do arquivo da Nota Fiscal
+            # Upload da Nota Fiscal
             arquivo_nf = st.file_uploader(
                 "Upload da NOTA FISCAL (PDF/Imagem)", 
                 type=["pdf", "png", "jpg", "jpeg"],
@@ -64,7 +64,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                     if etiqueta_existe:
                         st.error(f"Já existe um patrimônio cadastrado com a etiqueta '{etiqueta}'.")
                     else:
-                        # Dados do arquivo enviado
                         nf_dados = None
                         if arquivo_nf is not None:
                             nf_dados = {
@@ -103,7 +102,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
         st.info("Nenhum patrimônio cadastrado até o momento.")
         return
 
-    # Tratamento para exibição na tabela (remove bytes brutos do DataFrame)
     dados_tabela = []
     for item in patrimonio_db:
         item_copia = item.copy()
