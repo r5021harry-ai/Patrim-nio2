@@ -2,19 +2,22 @@ import streamlit as st
 import os
 import pandas as pd
 import importlib
-import urllib.parse
 import io
+import tempfile
 from PIL import Image
 
-# Importações para geração de PDF
-from reportlab.lib.units import mm
-from reportlab.pdfgen import canvas
-from reportlab.graphics.barcode import code128
+# Importações para geração de PDF e QR Code (fpdf + qrcode)
+from fpdf import FPDF
+import qrcode
 
-# --- CONFIGURAÇÃO DA PÁGINA (FAVICON CORRIGIDO SEM DISTORÇÃO) ---
+# --- CAMINHO DA LOGO ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+LOGO_PATH = os.path.join(BASE_DIR, "logo.png")
+
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Patrimônio ISPN", 
-    page_icon="images.jpg", 
+    page_icon="images.jpg" if os.path.exists("images.jpg") else "logo.png", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -131,19 +134,73 @@ st.markdown("""
     .stButton>button[kind="primary"]:hover {
         background-color: #166534 !important;
     }
-
-    .etiqueta-card {
-        background: #FFFFFF !important;
-        color: #000000 !important;
-        padding: 18px;
-        border-radius: 10px;
-        border: 2px solid #15803D;
-        text-align: center;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
 </style>
 """, unsafe_allow_html=True)
+
+# --- FUNÇÕES AUXILIARES DE QR CODE E ETIQUETA ---
+def gerar_qrcode(conteudo_str):
+    """Gera o buffer de imagem PNG do QR Code contendo as informações/etiqueta."""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=6,
+        border=1,
+    )
+    qr.add_data(conteudo_str)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    rv = io.BytesIO()
+    img.save(rv, format="PNG")
+    rv.seek(0)
+    return rv
+
+def gerar_pdf_etiqueta(codigo_etiqueta):
+    """Gera PDF de etiqueta (50x30mm) fiel ao modelo físico (Logo na esquerda | QR Code e Patrimônio na direita)."""
+    pdf = FPDF(orientation='L', unit='mm', format=(30, 50))
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+    
+    # Borda fina e discreta
+    pdf.set_line_width(0.2)
+    pdf.set_draw_color(200, 200, 200)
+    pdf.rect(1, 1, 48, 28)
+
+    # 1. ESQUERDA: LOGO COMPLETA (logo.png)
+    if os.path.exists(LOGO_PATH):
+        try:
+            pdf.image(LOGO_PATH, x=3, y=4, w=22)
+        except Exception:
+            pass
+
+    # 2. DIREITA: TEXTO 'Patrimônio', QR CODE E CÓDIGO
+    pdf.set_xy(26, 3)
+    pdf.set_font("Arial", "", 8)
+    pdf.set_text_color(70, 70, 70)
+    pdf.cell(21, 4, "Patrimônio", 0, 1, 'C')
+
+    # QR Code
+    etiqueta_str = str(codigo_etiqueta)
+    qr_buffer = gerar_qrcode(etiqueta_str)
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
+        tmp.write(qr_buffer.getvalue())
+        tmp_path = tmp.name
+
+    pdf.image(tmp_path, x=29.5, y=7.5, w=14, h=14)
+
+    # Número da Etiqueta
+    pdf.set_xy(26, 22)
+    pdf.set_font("Arial", "", 8)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(21, 4, etiqueta_str, 0, 1, 'C')
+    
+    try:
+        os.remove(tmp_path)
+    except Exception:
+        pass
+
+    return bytes(pdf.output(dest='S'))
 
 # --- IMPORTAÇÕES INTELIGENTES DE MÓDULOS ---
 try:
@@ -191,34 +248,6 @@ render_dashboard = dash_mod.render_dashboard
 render_gestao = gest_mod.render_gestao
 render_relatorios = rel_mod.render_relatorios
 render_conferencia = conf_mod.render_conferencia
-
-# --- GERAR PDF DA ETIQUETA ---
-def gerar_pdf_etiqueta(codigo, nome_item):
-    buffer = io.BytesIO()
-    largura = 50 * mm
-    altura = 30 * mm
-    
-    c = canvas.Canvas(buffer, pagesize=(largura, altura))
-    c.setFont("Helvetica-Bold", 7)
-    c.setFillColorRGB(0.09, 0.50, 0.24)
-    c.drawCentredString(largura / 2.0, altura - 5 * mm, "PATRIMÔNIO ISPN")
-    
-    c.setFont("Helvetica-Bold", 6)
-    c.setFillColorRGB(0, 0, 0)
-    nome_curto = (nome_item[:20] + '...') if len(str(nome_item)) > 20 else str(nome_item)
-    c.drawCentredString(largura / 2.0, altura - 9 * mm, nome_curto)
-    
-    barcode = code128.Code128(codigo, barHeight=11 * mm, barWidth=0.28 * mm)
-    barcode.drawOn(c, (largura - barcode.width) / 2.0, 7 * mm)
-    
-    c.setFont("Helvetica", 6)
-    c.drawCentredString(largura / 2.0, 3 * mm, f"Etiqueta: {codigo}")
-    
-    c.showPage()
-    c.save()
-    
-    buffer.seek(0)
-    return buffer.getvalue()
 
 # --- FUNÇÃO AUXILIAR DE PERSISTÊNCIA DE DADOS (CALLBACK) ---
 def persistir_dados():
@@ -390,7 +419,7 @@ else:
                     st.success("Histórico limpo!")
                     st.rerun()
 
-    # --- ÁREA PRINCIPAL (NAVEGAÇÃO SEM EMOJIS) ---
+    # --- ÁREA PRINCIPAL ---
     aba = st.tabs([
         "Dashboard Geral", 
         "Gestão de Patrimônio", 
@@ -528,6 +557,7 @@ else:
             except TypeError:
                 render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db)
 
+    # --- ABA 3: EMISSÃO DE ETIQUETAS (ATUALIZADA) ---
     with aba[3]:
         st.subheader("Gerador de Etiquetas Patrimoniais")
         df_patrimonio = pd.DataFrame(st.session_state.patrimonio_db)
@@ -542,37 +572,38 @@ else:
                 )
             )
 
-            col_sel1, col_sel2 = st.columns([2, 1])
+            col_sel1, _ = st.columns([2, 1])
             with col_sel1:
                 opcoes_itens = df_patrimonio[col_etiqueta].astype(str) + " - " + df_patrimonio[col_nome].astype(str)
-                item_selecionado = st.selectbox("Selecione o Patrimônio:", opcoes_itens)
+                item_selecionado = st.selectbox("Selecione o Patrimônio:", opcoes_itens, key="aba_etiquetas_select")
             
             if item_selecionado and isinstance(item_selecionado, str) and " - " in item_selecionado:
-                etiqueta_cod = item_selecionado.split(" - ")[0]
-                item_dados_lista = df_patrimonio[df_patrimonio[col_etiqueta].astype(str) == etiqueta_cod]
+                etiqueta_cod = item_selecionado.split(" - ")[0].strip()
+                item_dados_lista = df_patrimonio[df_patrimonio[col_etiqueta].astype(str).str.strip() == etiqueta_cod]
                 
                 if not item_dados_lista.empty:
-                    item_dados = item_dados_lista.iloc[0]
-                    item_titulo = str(item_dados[col_nome])
-                    barcode_url = f"https://barcode.tec-it.com/barcode.ashx?data={urllib.parse.quote(etiqueta_cod)}&code=Code128&translate-esc=false"
-                    
+                    item_dados = item_dados_lista.iloc[0].to_dict()
                     st.markdown("---")
-                    c_etiqueta, c_info = st.columns([1, 2])
                     
+                    c_etiqueta, c_info = st.columns([1, 1.2])
+                    
+                    # PREVISÃO DA ETIQUETA NA TELA (ESTILO FOTO)
                     with c_etiqueta:
-                        st.markdown(
-                            f"""
-                            <div class="etiqueta-card">
-                                <h3 style="margin: 0; color: #15803D; font-size: 18px;">PATRIMÔNIO ISPN</h3>
-                                <p style="margin: 5px 0; font-weight: bold; font-size: 16px;">{item_titulo}</p>
-                                <img src="{barcode_url}" alt="Código de Barras" style="width: 80%; margin: 10px 0;">
-                                <p style="margin: 0; font-size: 12px; color: #555;">Etiqueta: {etiqueta_cod}</p>
-                            </div>
-                            """, 
-                            unsafe_allow_html=True
-                        )
+                        qr_buffer = gerar_qrcode(etiqueta_cod)
+                        
+                        with st.container(border=True):
+                            col_logo, col_qr = st.columns([1.1, 1])
 
-                        pdf_bytes = gerar_pdf_etiqueta(etiqueta_cod, item_titulo)
+                            with col_logo:
+                                if os.path.exists(LOGO_PATH):
+                                    st.image(LOGO_PATH, use_container_width=True)
+
+                            with col_qr:
+                                st.markdown("<p style='text-align: center; color: #555; margin: 0; font-size: 13px;'>Patrimônio</p>", unsafe_allow_html=True)
+                                st.image(qr_buffer, use_container_width=True)
+                                st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 0; font-size: 14px; color: #000;'>{etiqueta_cod}</p>", unsafe_allow_html=True)
+
+                        pdf_bytes = gerar_pdf_etiqueta(etiqueta_cod)
 
                         st.download_button(
                             label="Baixar Etiqueta em PDF (50x30mm)",
@@ -580,12 +611,13 @@ else:
                             file_name=f"etiqueta_{etiqueta_cod}.pdf",
                             mime="application/pdf",
                             use_container_width=True,
-                            type="primary"
+                            type="primary",
+                            key="btn_download_etiqueta_aba3"
                         )
 
                     with c_info:
                         st.markdown(f"**Código:** `{etiqueta_cod}`")
-                        st.markdown(f"**Item:** {item_titulo}")
+                        st.markdown(f"**Item:** {item_dados.get(col_nome, 'N/A')}")
                         for key, val in item_dados.items():
                             if key not in [col_etiqueta, col_nome]:
                                 st.markdown(f"**{str(key).title()}:** {val}")
