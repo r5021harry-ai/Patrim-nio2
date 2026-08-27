@@ -1,72 +1,134 @@
 import streamlit as st
-import pandas as pd
+import io
+import os
+from fpdf import FPDF
+import barcode
+from barcode.writer import ImageWriter
 
-def render_relatorios(patrimonio_db, historico_db):
-    # Título removido para evitar duplicidade com a navegação
-    st.caption("Consulte a relação geral dos bens e o histórico de movimentações do sistema.")
+def gerar_codigo_barras(etiqueta_str):
+    """Gera o buffer de imagem PNG do código de barras."""
+    rv = io.BytesIO()
+    code128 = barcode.get_barcode_class('code128')
+    bc = code128(etiqueta_str, writer=ImageWriter())
+    bc.write(rv, options={"module_height": 10.0, "font_size": 10, "text_distance": 3.0, "quiet_zone": 2.0})
+    rv.seek(0)
+    return rv
 
-    tab_geral, tab_historico = st.tabs(["Relação Geral & Filtros", "Histórico Geral do Sistema"])
+def gerar_pdf_etiqueta(item, logo_path="logo.png"):
+    """Gera PDF de etiqueta individual tamanho padrão 50x30mm."""
+    pdf = FPDF(orientation='L', unit='mm', format=(30, 50))
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+    
+    # Borda verde
+    pdf.set_line_width(0.3)
+    pdf.set_draw_color(0, 100, 50)
+    pdf.rect(1, 1, 48, 28)
 
-    with tab_geral:
-        st.subheader("Relação Geral de Patrimônios")
+    # 1. LOGO OU TÍTULO NO TOPO
+    if logo_path and os.path.exists(logo_path):
+        try:
+            # Insere a logo centralizada no topo (largura 18mm)
+            pdf.image(logo_path, x=16, y=2.5, w=18)
+            pdf.set_y(8.5)
+        except Exception:
+            pdf.set_font("Arial", "B", 8)
+            pdf.set_text_color(0, 100, 50)
+            pdf.cell(0, 4, "ISPN PATRIMÔNIO", 0, 1, 'C')
+    else:
+        pdf.set_font("Arial", "B", 8)
+        pdf.set_text_color(0, 100, 50)
+        pdf.cell(0, 4, "ISPN PATRIMÔNIO", 0, 1, 'C')
 
-        if not patrimonio_db:
-            st.info("Nenhum patrimônio cadastrado.")
-        else:
-            df = pd.DataFrame(patrimonio_db)
+    # 2. NOME DO ITEM
+    pdf.set_font("Arial", "B", 7)
+    pdf.set_text_color(0, 0, 0)
+    nome_bem = str(item.get('nome', 'N/A'))[:25]
+    pdf.cell(0, 3.5, nome_bem, 0, 1, 'C')
 
-            col_f1, col_f2 = st.columns(2)
-            
-            col_status = next((c for c in ['status', 'estado', 'Status', 'Estado'] if c in df.columns), None)
-            col_local = next((c for c in ['localizacao', 'cidade', 'Localização', 'Cidade'] if c in df.columns), None)
+    # 3. CÓDIGO DE BARRAS (já possui o número impresso abaixo pelo próprio gerador)
+    etiqueta = str(item.get('etiqueta', '00000'))
+    bc_buffer = gerar_codigo_barras(etiqueta)
+    
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
+        tmp.write(bc_buffer.getvalue())
+        tmp_path = tmp.name
 
-            with col_f1:
-                if col_status:
-                    opcoes_status = ["Todos"] + sorted(df[col_status].dropna().astype(str).unique().tolist())
-                    filtro_status = st.selectbox("Filtrar por Status:", opcoes_status)
-                else:
-                    filtro_status = "Todos"
+    pdf.image(tmp_path, x=6, y=12, w=38, h=15)
+    
+    try:
+        os.remove(tmp_path)
+    except Exception:
+        pass
 
-            with col_f2:
-                if col_local:
-                    opcoes_local = ["Todos"] + sorted(df[col_local].dropna().astype(str).unique().tolist())
-                    filtro_local = st.selectbox("Filtrar por Localização:", opcoes_local)
-                else:
-                    filtro_local = "Todos"
+    return bytes(pdf.output(dest='S'))
 
-            df_filtrado = df.copy()
-            if filtro_status != "Todos" and col_status:
-                df_filtrado = df_filtrado[df_filtrado[col_status].astype(str) == filtro_status]
-            if filtro_local != "Todos" and col_local:
-                df_filtrado = df_filtrado[df_filtrado[col_local].astype(str) == filtro_local]
+def render_etiquetas(patrimonio_db, logo_path="logo.png"):
+    st.subheader("Gerador de Etiquetas Patrimoniais")
 
-            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+    if not patrimonio_db:
+        st.info("Nenhum patrimônio cadastrado para geração de etiqueta.")
+        return
 
-            csv = df_filtrado.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Baixar Relatório (CSV)",
-                data=csv,
-                file_name="relatorio_patrimonio.csv",
-                mime="text/csv"
-            )
+    opcoes = [f"{item.get('etiqueta', '')} - {item.get('nome', '')}" for item in patrimonio_db]
+    sel_item_str = st.selectbox("Selecione o Patrimônio:", opcoes)
 
-    with tab_historico:
-        st.subheader("Histórico de Movimentações")
+    if sel_item_str:
+        etiqueta_sel = sel_item_str.split(" - ")[0].strip()
+        item = next((i for i in patrimonio_db if str(i.get("etiqueta")).strip() == etiqueta_sel), None)
 
-        if not historico_db:
-            st.info("Nenhuma movimentação registrada até o momento.")
-        else:
-            df_hist = pd.DataFrame(historico_db)
-            
-            if "data_hora" in df_hist.columns:
-                df_hist = df_hist.sort_values(by="data_hora", ascending=False)
+        if item:
+            col_card, col_detalhes = st.columns([1, 1])
 
-            st.dataframe(df_hist, use_container_width=True, hide_index=True)
+            # --- PREVISÃO DA ETIQUETA ---
+            with col_card:
+                bc_buffer = gerar_codigo_barras(str(item.get('etiqueta', '00000')))
+                
+                with st.container(border=True):
+                    if os.path.exists(logo_path):
+                        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+                        with col_l2:
+                            st.image(logo_path, use_container_width=True)
+                    else:
+                        st.markdown("<h4 style='text-align: center; color: #006432; margin: 0;'>ISPN PATRIMÔNIO</h4>", unsafe_allow_html=True)
 
-            csv_hist = df_hist.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="Baixar Histórico (CSV)",
-                data=csv_hist,
-                file_name="historico_patrimonio.csv",
-                mime="text/csv"
-            )
+                    st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 5px 0;'>{item.get('nome', '')}</p>", unsafe_allow_html=True)
+                    st.image(bc_buffer, use_container_width=True)
+
+                pdf_bytes = gerar_pdf_etiqueta(item, logo_path=logo_path)
+                st.download_button(
+                    label="Baixar Etiqueta em PDF (50x30mm)",
+                    data=pdf_bytes,
+                    file_name=f"etiqueta_{item.get('etiqueta')}.pdf",
+                    mime="application/pdf",
+                    type="primary",
+                    use_container_width=True
+                )
+
+            # --- DETALHES FORMATADOS AO LADO ---
+            with col_detalhes:
+                val_num = item.get("valor_unitario", item.get("valor", 0.0))
+                try:
+                    val_float = float(val_num) if val_num is not None else 0.0
+                except ValueError:
+                    val_float = 0.0
+
+                val_fmt = f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                nf_arq = item.get('arquivo_nf') or "Nenhum arquivo anexado"
+
+                st.markdown(f"""
+                **Código:** `{item.get('etiqueta', 'N/A')}`  
+                **Item:** {item.get('nome', 'N/A')}  
+                **Categoria:** {item.get('categoria', 'N/A')}  
+                **Setor:** {item.get('setor', 'N/A')}  
+                **Número NF:** {item.get('numero_nf', 'N/A')}  
+                **Fornecedor:** {item.get('fornecedor', 'N/A')}  
+                **Valor Unitário:** {val_fmt}  
+                **Arquivo NF:** {nf_arq}  
+                **Localização:** {item.get('localizacao', 'N/A')}  
+                **Responsável:** {item.get('responsavel', 'N/A')}  
+                **Estado:** {item.get('estado', 'N/A')}  
+                **Placa:** {item.get('placa') or 'N/A'}  
+                **Observações:** {item.get('observacoes') or 'Sem observações'}
+                """)
