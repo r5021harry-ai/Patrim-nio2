@@ -22,14 +22,8 @@ def processar_moeda(valor_input):
     except ValueError:
         return str(valor_input), 0.0
 
-def auto_formatar_valor_cadastro():
-    val = st.session_state.get("campo_valor_raw", "")
-    txt_fmt, _ = processar_moeda(val)
-    if txt_fmt:
-        st.session_state["campo_valor_raw"] = txt_fmt
-
 def resetar_campos_callback():
-    """Limpa o estado dos campos com segurança via Callback."""
+    """Limpa o estado dos campos com segurança."""
     st.session_state["input_numero_nf"] = ""
     st.session_state["input_nome_fornecedor"] = ""
     st.session_state["campo_valor_raw"] = ""
@@ -55,7 +49,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
     # --- FORMULÁRIO ABERTO POR PADRÃO ---
     with st.expander("Cadastrar Novo Patrimônio", expanded=True):
         
-        # Colocando todo o formulário dentro do bloco st.form para evitar conflito de estado
         with st.form("form_cadastro_patrimonio"):
             st.markdown("### Dados da Nota Fiscal / Compra")
             col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
@@ -65,12 +58,12 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
             with col_nf2:
                 fornecedor = st.text_input("Nome do Fornecedor", key="input_nome_fornecedor")
             with col_nf3:
-                st.text_input(
+                # O parâmetro on_change foi removido para evitar o erro de formulário
+                valor_raw = st.text_input(
                     "Valor Unitário do Bem (R$)",
                     key="campo_valor_raw",
                     placeholder="Ex: 1500 ou 1500,85",
-                    on_change=auto_formatar_valor_cadastro,
-                    help="Digite o valor e pressione Enter/Tab para formatar em R$"
+                    help="Digite o valor (Ex: 1500 ou 1500,85)"
                 )
 
             arquivo_nf = st.file_uploader(
@@ -115,7 +108,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                     if etiqueta_existe:
                         st.error(f"Já existe um patrimônio cadastrado com a etiqueta '{etiqueta}'.")
                     else:
-                        _, valor_unitario = processar_moeda(st.session_state.get("campo_valor_raw", ""))
+                        _, valor_unitario = processar_moeda(valor_raw)
                         
                         nf_dados = None
                         if arquivo_nf is not None:
@@ -154,7 +147,6 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         if save_callback:
                             save_callback()
                             
-                        # Limpa o estado e recarrega a página de forma limpa
                         resetar_campos_callback()
                         st.toast(f"Patrimônio '{nome}' cadastrado com sucesso!", icon="✅")
                         st.rerun()
