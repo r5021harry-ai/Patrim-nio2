@@ -2,15 +2,15 @@ import streamlit as st
 import pandas as pd
 
 def render_dashboard(patrimonio_db):
-    st.title("Dashboard Geral")
-
+    # Título removido para evitar duplicidade com a navegação
+    
     if not patrimonio_db:
         st.info("Nenhum dado patrimonial cadastrado para exibição.")
         return
 
     df = pd.DataFrame(patrimonio_db)
 
-    # Mapeamento de colunas (com fallbacks flexíveis para maiúsculas/minúsculas)
+    # Mapeamento de colunas
     col_etiqueta = next((c for c in ['etiqueta', 'patrimonio', 'Etiqueta', 'Patrimônio'] if c in df.columns), df.columns[0])
     col_categoria = next((c for c in ['categoria', 'tipo', 'Categoria', 'Tipo'] if c in df.columns), None)
     col_status = next((c for c in ['status', 'estado', 'Status', 'Estado'] if c in df.columns), None)
@@ -21,9 +21,7 @@ def render_dashboard(patrimonio_db):
     c1.metric("Total de Bens", len(df))
 
     if col_status:
-        # Busca insensível a maiúsculas/minúsculas para capturar variações do status
         status_series = df[col_status].astype(str).str.strip().str.lower()
-        
         qtd_disp = len(df[status_series.isin(["disponível", "disponivel", "bom", "novo"])])
         qtd_uso = len(df[status_series.isin(["em uso", "uso", "alocado"])])
         qtd_manut = len(df[status_series.isin(["manutenção", "manutencao", "reparo"])])
