@@ -169,6 +169,7 @@ create_user = auth_mod.create_user
 update_password = auth_mod.update_password
 delete_user = getattr(auth_mod, "delete_user", None)
 
+# --- IMPORTAÇÃO E RECARREGAMENTO DINÂMICO DAS VIEWS ---
 try:
     dash_mod = importlib.import_module("vistas.dashboard")
     gest_mod = importlib.import_module("vistas.gestao")
@@ -179,6 +180,12 @@ except ModuleNotFoundError:
     gest_mod = importlib.import_module("views.gestao")
     rel_mod = importlib.import_module("views.relatorios")
     conf_mod = importlib.import_module("views.conferencia")
+
+# Força a atualização do cache de código do Python para refletir mudanças na hora
+importlib.reload(dash_mod)
+importlib.reload(gest_mod)
+importlib.reload(rel_mod)
+importlib.reload(conf_mod)
 
 render_dashboard = dash_mod.render_dashboard
 render_gestao = gest_mod.render_gestao
@@ -212,6 +219,16 @@ def gerar_pdf_etiqueta(codigo, nome_item):
     
     buffer.seek(0)
     return buffer.getvalue()
+
+# --- FUNÇÃO AUXILIAR DE PERSISTÊNCIA DE DADOS (CALLBACK) ---
+def persistir_dados():
+    if save_all_data:
+        save_all_data(
+            st.session_state.users_db,
+            st.session_state.patrimonio_db,
+            st.session_state.historico_db,
+            st.session_state.cidades_db
+        )
 
 # --- CARREGAMENTO DE DADOS E GARANTIA FORÇADA DE ADMIN ---
 if "patrimonio_db" not in st.session_state:
@@ -332,8 +349,7 @@ else:
                         if st.button("💾 Salvar Nova Senha", key=f"btn_p_{u_sel}", type="primary"):
                             if n_pass_adm:
                                 update_password(st.session_state.users_db, u_sel, n_pass_adm)
-                                if save_all_data:
-                                    save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+                                persistir_dados()
                                 st.success("Senha alterada com sucesso!")
                             else:
                                 st.warning("Digite uma senha válida.")
@@ -349,8 +365,7 @@ else:
                                 else:
                                     st.session_state.users_db.pop(u_sel, None)
                                 
-                                if save_all_data:
-                                    save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+                                persistir_dados()
                                 st.success(f"Usuário '{u_sel}' removido!")
                                 st.rerun()
 
@@ -363,8 +378,7 @@ else:
                         if n_user and n_pass:
                             ok, msg = create_user(st.session_state.users_db, n_user, n_pass, n_role)
                             if ok:
-                                if save_all_data:
-                                    save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+                                persistir_dados()
                                 st.success(msg)
                             else:
                                 st.error(msg)
@@ -372,8 +386,7 @@ else:
             with st.expander("🗑️ Gerenciar Dados"):
                 if st.button("Limpar Histórico Geral", type="primary", use_container_width=True):
                     st.session_state.historico_db = []
-                    if save_all_data:
-                        save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, [], st.session_state.cidades_db)
+                    persistir_dados()
                     st.success("Histórico limpo!")
                     st.rerun()
 
@@ -391,9 +404,21 @@ else:
 
     with aba[1]:
         try:
-            render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+            render_gestao(
+                st.session_state.patrimonio_db, 
+                st.session_state.historico_db, 
+                st.session_state.cidades_db, 
+                save_callback=persistir_dados
+            )
         except TypeError:
-            render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
+            try:
+                render_gestao(
+                    st.session_state.patrimonio_db, 
+                    st.session_state.historico_db, 
+                    save_callback=persistir_dados
+                )
+            except TypeError:
+                render_gestao(st.session_state.patrimonio_db, st.session_state.historico_db)
             
         st.markdown("<br><hr>", unsafe_allow_html=True)
         
@@ -478,8 +503,7 @@ else:
                         else:
                             st.session_state.patrimonio_db.extend(novos_itens)
                             
-                        if save_all_data:
-                            save_all_data(st.session_state.users_db, st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+                        persistir_dados()
                         
                         st.success(f"✅ Importação realizada com sucesso! {len(novos_itens)} itens adicionados/atualizados.")
                         st.rerun()
@@ -488,9 +512,21 @@ else:
 
     with aba[2]:
         try:
-            render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
+            render_conferencia(
+                st.session_state.patrimonio_db, 
+                st.session_state.historico_db, 
+                st.session_state.cidades_db, 
+                save_callback=persistir_dados
+            )
         except TypeError:
-            render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db)
+            try:
+                render_conferencia(
+                    st.session_state.patrimonio_db, 
+                    st.session_state.historico_db, 
+                    save_callback=persistir_dados
+                )
+            except TypeError:
+                render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db)
 
     with aba[3]:
         st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
