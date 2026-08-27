@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 
 def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
-    st.title("📦 Gestão de Patrimônio")
+    st.title("Gestão de Patrimônio")
     
-    # --- FORMULÁRIO ABERTO POR PADRÃO (expanded=True) ---
-    with st.expander("➕ Cadastrar Novo Patrimônio", expanded=True):
+    # --- FORMULÁRIO ABERTO POR PADRÃO ---
+    with st.expander("Cadastrar Novo Patrimônio", expanded=True):
         with st.form("form_novo_patrimonio"):
-            st.markdown("### 📄 Dados da Nota Fiscal / Compra")
+            st.markdown("### Dados da Nota Fiscal / Compra")
             
             col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1])
             with col_nf1:
@@ -31,7 +31,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
             )
 
             st.markdown("---")
-            st.markdown("### 📦 Detalhes do Patrimônio")
+            st.markdown("### Detalhes do Patrimônio")
 
             col_pat1, col_pat2 = st.columns(2)
             
@@ -113,7 +113,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
 
     col_busca, col_filtro_cat = st.columns([2, 1])
     with col_busca:
-        busca = st.text_input("🔍 Pesquisar por Etiqueta, Nome ou Responsável:")
+        busca = st.text_input("Pesquisar por Etiqueta, Nome ou Responsável:")
     with col_filtro_cat:
         categorias = ["Todas"] + list(df['categoria'].dropna().unique()) if 'categoria' in df.columns else ["Todas"]
         cat_sel = st.selectbox("Filtrar Categoria:", categorias)
@@ -129,11 +129,11 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
         )
         df_filtrado = df_filtrado[mask]
 
-    st.subheader(f"📋 Itens Cadastrados ({len(df_filtrado)})")
+    st.subheader(f"Itens Cadastrados ({len(df_filtrado)})")
     st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
 
     # --- SEÇÃO DE EDICÃO E REMOÇÃO ---
-    with st.expander("🛠️ Editar ou Remover Patrimônio", expanded=False):
+    with st.expander("Editar ou Remover Patrimônio", expanded=False):
         codigos_disponiveis = [str(item.get("etiqueta")) for item in patrimonio_db if "etiqueta" in item]
         
         if codigos_disponiveis:
@@ -190,7 +190,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
 
                 with c_del:
                     st.markdown("<br><br>", unsafe_allow_html=True)
-                    if st.button(f"🗑️ Excluir {item_sel_cod}", type="secondary", use_container_width=True):
+                    if st.button(f"Excluir {item_sel_cod}", type="secondary", use_container_width=True):
                         patrimonio_db.pop(idx_item)
                         if save_callback:
                             save_callback()
