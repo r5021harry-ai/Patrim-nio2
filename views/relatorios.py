@@ -1,7 +1,7 @@
 import streamlit as st
 import io
 import os
-from FPDF import FPDF if False else None # fallback import
+import tempfile
 from fpdf import FPDF
 import barcode
 from barcode.writer import ImageWriter
@@ -57,7 +57,6 @@ def gerar_pdf_etiqueta(item, logo_path=None):
     etiqueta = str(item.get('etiqueta', '00000'))
     bc_buffer = gerar_codigo_barras(etiqueta)
     
-    import tempfile
     with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
         tmp.write(bc_buffer.getvalue())
         tmp_path = tmp.name
@@ -101,7 +100,7 @@ def render_etiquetas(patrimonio_db, logo_path=None):
                         with col_l2:
                             st.image(logo_path, use_container_width=True)
 
-                    # Texto "PATRIMÔNIO" (sem "ISPN" duplicado)
+                    # Texto "PATRIMÔNIO" apenas (sem "ISPN")
                     st.markdown("<h4 style='text-align: center; color: #006432; margin: 2px 0; font-size: 16px;'>PATRIMÔNIO</h4>", unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 2px 0;'>{item.get('nome', '')}</p>", unsafe_allow_html=True)
                     st.image(bc_buffer, use_container_width=True)
