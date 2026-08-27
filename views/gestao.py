@@ -22,29 +22,13 @@ def processar_moeda(valor_input):
     except ValueError:
         return str(valor_input), 0.0
 
-def resetar_campos_callback():
-    """Limpa os campos de forma segura ANTES de renderizá-los novamente."""
-    st.session_state["input_numero_nf"] = ""
-    st.session_state["input_nome_fornecedor"] = ""
-    st.session_state["campo_valor_raw"] = ""
-    st.session_state["input_etiqueta"] = ""
-    st.session_state["input_nome"] = ""
-    st.session_state["input_setor"] = ""
-    st.session_state["input_responsavel"] = "Equipe ISPN"
-    st.session_state["input_placa"] = ""
-    st.session_state["input_observacoes"] = ""
-    if "input_arquivo_nf" in st.session_state:
-        del st.session_state["input_arquivo_nf"]
-
 def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
     
-    # Inicializa estado das chaves de input se não existirem
-    if "campo_valor_raw" not in st.session_state:
-        st.session_state["campo_valor_raw"] = ""
-    if "input_numero_nf" not in st.session_state:
-        st.session_state["input_numero_nf"] = ""
-    if "input_nome_fornecedor" not in st.session_state:
-        st.session_state["input_nome_fornecedor"] = ""
+    # Inicializa um contador para forçar o reset limpo dos campos do formulário
+    if "form_clear_key" not in st.session_state:
+        st.session_state["form_clear_key"] = 0
+
+    suffix = f"_{st.session_state['form_clear_key']}"
 
     # --- FORMULÁRIO ABERTO POR PADRÃO ---
     with st.expander("Cadastrar Novo Patrimônio", expanded=True):
@@ -54,13 +38,13 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
             col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
             
             with col_nf1:
-                numero_nf = st.text_input("Nº NF", key="input_numero_nf")
+                numero_nf = st.text_input("Nº NF", key=f"input_numero_nf{suffix}")
             with col_nf2:
-                fornecedor = st.text_input("Nome do Fornecedor", key="input_nome_fornecedor")
+                fornecedor = st.text_input("Nome do Fornecedor", key=f"input_nome_fornecedor{suffix}")
             with col_nf3:
                 valor_raw = st.text_input(
                     "Valor Unitário do Bem (R$)",
-                    key="campo_valor_raw",
+                    key=f"campo_valor_raw{suffix}",
                     placeholder="Ex: 1500 ou 1500,85",
                     help="Digite o valor (Ex: 1500 ou 1500,85)"
                 )
@@ -69,7 +53,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                 "Upload da NOTA FISCAL (PDF/Imagem)", 
                 type=["pdf", "png", "jpg", "jpeg"],
                 help="Selecione o arquivo da Nota Fiscal (máx. 200MB)",
-                key="input_arquivo_nf"
+                key=f"input_arquivo_nf{suffix}"
             )
 
             st.markdown("---")
@@ -80,24 +64,23 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
             locais = cidades_db.get("lista", ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]) if isinstance(cidades_db, dict) else ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]
 
             with col_pat1:
-                etiqueta = st.text_input("Patrimônio (Código/Etiqueta) *", key="input_etiqueta")
-                nome = st.text_input("Descrição do bem *", key="input_nome")
+                etiqueta = st.text_input("Patrimônio (Código/Etiqueta) *", key=f"input_etiqueta{suffix}")
+                nome = st.text_input("Descrição do bem *", key=f"input_nome{suffix}")
                 categoria = st.selectbox(
                     "Categoria do bem", 
                     ["Informática", "Mobiliário", "Veículos", "Eletrodomésticos", "Outros"],
-                    key="input_categoria"
+                    key=f"input_categoria{suffix}"
                 )
-                setor = st.text_input("Setor", key="input_setor")
+                setor = st.text_input("Setor", key=f"input_setor{suffix}")
 
             with col_pat2:
-                localizacao = st.selectbox("Localização / Cidade", locais, key="input_localizacao")
-                responsavel = st.text_input("Responsável", key="input_responsavel")
-                estado = st.selectbox("Situação / Status", ["Em Uso", "Em Manutenção", "Inservível", "Baixado"], key="input_estado")
-                placa = st.text_input("Placa (Se Veículo)", key="input_placa")
+                localizacao = st.selectbox("Localização / Cidade", locais, key=f"input_localizacao{suffix}")
+                responsavel = st.text_input("Responsável", key=f"input_responsavel{suffix}")
+                estado = st.selectbox("Situação / Status", ["Em Uso", "Em Manutenção", "Inservível", "Baixado"], key=f"input_estado{suffix}")
+                placa = st.text_input("Placa (Se Veículo)", key=f"input_placa{suffix}")
 
-            observacoes = st.text_area("Observações", key="input_observacoes")
+            observacoes = st.text_area("Observações", key=f"input_observacoes{suffix}")
 
-            # O resetar_campos_callback é chamado via on_click com segurança no ciclo do formulário
             submitted = st.form_submit_button("Cadastrar Patrimônio", type="primary", use_container_width=True)
             
             if submitted:
@@ -147,8 +130,8 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         if save_callback:
                             save_callback()
                             
-                        # Limpa os valores para o próximo ciclo
-                        resetar_campos_callback()
+                        # Incrementa o contador da chave para descartar o formulário antigo e resetar todos os inputs
+                        st.session_state["form_clear_key"] += 1
                         st.toast(f"Patrimônio '{nome}' cadastrado com sucesso!", icon="✅")
                         st.rerun()
 
