@@ -14,10 +14,20 @@ import qrcode
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGO_PATH = os.path.join(BASE_DIR, "ispn2.png")
 
+# Função auxiliar para carregar imagem com segurança
+def carregar_logo():
+    if os.path.exists(LOGO_PATH):
+        try:
+            return Image.open(LOGO_PATH)
+        except Exception:
+            return None
+    return None
+
 # --- CONFIGURAÇÃO DA PÁGINA ---
+logo_img_icon = carregar_logo()
 st.set_page_config(
     page_title="Patrimônio ISPN", 
-    page_icon="ispn2.png" if os.path.exists("ispn2.png") else "images.jpg", 
+    page_icon=logo_img_icon if logo_img_icon else "images.jpg", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -298,10 +308,11 @@ def login_screen():
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 2, 1])
     with col2:
-        if os.path.exists("ispn2.png"):
+        img_logo = carregar_logo()
+        if img_logo:
             img_c1, img_c2, img_c3 = st.columns([1, 2, 1])
             with img_c2:
-                st.image("ispn2.png", use_container_width=True)
+                st.image(img_logo, use_container_width=True)
                 
         st.markdown(
             """
@@ -336,10 +347,11 @@ if not st.session_state.logged_in:
 else:
     # --- SIDEBAR ---
     with st.sidebar:
-        if os.path.exists("ispn2.png"):
+        img_logo = carregar_logo()
+        if img_logo:
             side_c1, side_c2, side_c3 = st.columns([1, 2, 1])
             with side_c2:
-                st.image("ispn2.png", use_container_width=True)
+                st.image(img_logo, use_container_width=True)
                 
         st.markdown(
             f"""
@@ -590,13 +602,16 @@ else:
                     # PREVISÃO DA ETIQUETA NA TELA
                     with c_etiqueta:
                         qr_buffer = gerar_qrcode(etiqueta_cod)
+                        img_logo = carregar_logo()
                         
                         with st.container(border=True):
                             col_logo, col_qr = st.columns([1.1, 1])
 
                             with col_logo:
-                                if os.path.exists(LOGO_PATH):
-                                    st.image(LOGO_PATH, use_container_width=True)
+                                if img_logo:
+                                    st.image(img_logo, use_container_width=True)
+                                else:
+                                    st.warning("Imagem 'ispn2.png' não encontrada na pasta raiz.")
 
                             with col_qr:
                                 st.markdown("<p style='text-align: center; color: #555; margin: 0; font-size: 13px;'>Patrimônio</p>", unsafe_allow_html=True)
