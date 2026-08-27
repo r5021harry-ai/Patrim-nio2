@@ -3,24 +3,31 @@ import io
 import os
 import tempfile
 from fpdf import FPDF
-import barcode
-from barcode.writer import ImageWriter
+import qrcode
 
-# Garante o caminho absoluto para a imagem ispn.png na raiz do projeto
+# Caminho absoluto para encontrar a imagem logo.png na raiz do projeto
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-LOGO_PATH_DEFAULT = os.path.join(BASE_DIR, "ispn.png")
+LOGO_PATH_DEFAULT = os.path.join(BASE_DIR, "logo.png")
 
-def gerar_codigo_barras(etiqueta_str):
-    """Gera o buffer de imagem PNG do código de barras."""
+def gerar_qrcode(conteudo_str):
+    """Gera o buffer de imagem PNG do QR Code."""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=6,
+        border=1,
+    )
+    qr.add_data(conteudo_str)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
     rv = io.BytesIO()
-    code128 = barcode.get_barcode_class('code128')
-    bc = code128(etiqueta_str, writer=ImageWriter())
-    bc.write(rv, options={"module_height": 10.0, "font_size": 10, "text_distance": 3.0, "quiet_zone": 2.0})
+    img.save(rv, format="PNG")
     rv.seek(0)
     return rv
 
 def gerar_pdf_etiqueta(item, logo_path=None):
-    """Gera PDF de etiqueta individual tamanho padrão 50x30mm."""
+    """Gera PDF de etiqueta (50x30mm) fiel ao modelo físico (Logo na esquerda | QR Code e Patrimônio na direita)."""
     if logo_path is None:
         logo_path = LOGO_PATH_DEFAULT
 
@@ -28,40 +35,40 @@ def gerar_pdf_etiqueta(item, logo_path=None):
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
     
-    # Borda verde
-    pdf.set_line_width(0.3)
-    pdf.set_draw_color(0, 100, 50)
+    # Borda fina e discreta
+    pdf.set_line_width(0.2)
+    pdf.set_draw_color(200, 200, 200)
     pdf.rect(1, 1, 48, 28)
 
-    # 1. LOGO E TEXTO "PATRIMÔNIO" NO TOPO
-    y_cursor = 2.0
+    # 1. COLUNA DA ESQUERDA: LOGO COMPLETA
     if os.path.exists(logo_path):
         try:
-            pdf.image(logo_path, x=17, y=y_cursor, w=16)
-            y_cursor += 7.5
+            pdf.image(logo_path, x=3, y=4, w=22)
         except Exception:
             pass
 
-    pdf.set_y(y_cursor)
-    pdf.set_font("Arial", "B", 7)
-    pdf.set_text_color(0, 100, 50)
-    pdf.cell(0, 3, "PATRIMÔNIO", 0, 1, 'C')
+    # 2. COLUNA DA DIREITA: ETIQUETA E QR CODE
+    # Texto "Patrimônio"
+    pdf.set_xy(26, 3)
+    pdf.set_font("Arial", "", 8)
+    pdf.set_text_color(70, 70, 70)
+    pdf.cell(21, 4, "Patrimônio", 0, 1, 'C')
 
-    # 2. NOME DO ITEM
-    pdf.set_font("Arial", "B", 7)
-    pdf.set_text_color(0, 0, 0)
-    nome_bem = str(item.get('nome', 'N/A'))[:25]
-    pdf.cell(0, 3.5, nome_bem, 0, 1, 'C')
-
-    # 3. CÓDIGO DE BARRAS
+    # QR Code
     etiqueta = str(item.get('etiqueta', '00000'))
-    bc_buffer = gerar_codigo_barras(etiqueta)
+    qr_buffer = gerar_qrcode(etiqueta)
     
     with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
-        tmp.write(bc_buffer.getvalue())
+        tmp.write(qr_buffer.getvalue())
         tmp_path = tmp.name
 
-    pdf.image(tmp_path, x=6, y=14, w=38, h=13)
+    pdf.image(tmp_path, x=29.5, y=7.5, w=14, h=14)
+
+    # Número da Etiqueta
+    pdf.set_xy(26, 22)
+    pdf.set_font("Arial", "", 8)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(21, 4, etiqueta, 0, 1, 'C')
     
     try:
         os.remove(tmp_path)
@@ -89,21 +96,22 @@ def render_etiquetas(patrimonio_db, logo_path=None):
         if item:
             col_card, col_detalhes = st.columns([1, 1])
 
-            # --- PREVISÃO DA ETIQUETA ---
+            # --- PREVISÃO DA ETIQUETA NA TELA ---
             with col_card:
-                bc_buffer = gerar_codigo_barras(str(item.get('etiqueta', '00000')))
+                qr_buffer = gerar_qrcode(str(item.get('etiqueta', '00000')))
                 
                 with st.container(border=True):
-                    # Exibe a logo se o arquivo ispn.png existir na raiz
-                    if os.path.exists(logo_path):
-                        col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-                        with col_l2:
+                    # Layout em 2 Colunas igual ao modelo da foto
+                    col_logo, col_qr = st.columns([1.1, 1])
+
+                    with col_logo:
+                        if os.path.exists(logo_path):
                             st.image(logo_path, use_container_width=True)
 
-                    # Texto "PATRIMÔNIO" apenas (sem "ISPN")
-                    st.markdown("<h4 style='text-align: center; color: #006432; margin: 2px 0; font-size: 16px;'>PATRIMÔNIO</h4>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 2px 0;'>{item.get('nome', '')}</p>", unsafe_allow_html=True)
-                    st.image(bc_buffer, use_container_width=True)
+                    with col_qr:
+                        st.markdown("<p style='text-align: center; color: #444; margin: 0; font-size: 14px;'>Patrimônio</p>", unsafe_allow_html=True)
+                        st.image(qr_buffer, use_container_width=True)
+                        st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 0; font-size: 14px;'>{item.get('etiqueta', '')}</p>", unsafe_allow_html=True)
 
                 pdf_bytes = gerar_pdf_etiqueta(item, logo_path=logo_path)
                 st.download_button(
@@ -144,6 +152,6 @@ def render_etiquetas(patrimonio_db, logo_path=None):
                 """)
 
 def render_relatorios(patrimonio_db, *args, **kwargs):
-    """Função principal chamada pelo app.py para renderizar a página de relatórios/etiquetas."""
+    """Função principal chamada para renderizar a página de relatórios/etiquetas."""
     st.title("Relatórios e Etiquetas")
     render_etiquetas(patrimonio_db)
