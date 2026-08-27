@@ -1,9 +1,14 @@
 import streamlit as st
 import io
 import os
+from FPDF import FPDF if False else None # fallback import
 from fpdf import FPDF
 import barcode
 from barcode.writer import ImageWriter
+
+# Garante o caminho absoluto para a imagem ispn.png na raiz do projeto
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+LOGO_PATH_DEFAULT = os.path.join(BASE_DIR, "ispn.png")
 
 def gerar_codigo_barras(etiqueta_str):
     """Gera o buffer de imagem PNG do código de barras."""
@@ -14,8 +19,11 @@ def gerar_codigo_barras(etiqueta_str):
     rv.seek(0)
     return rv
 
-def gerar_pdf_etiqueta(item, logo_path="ispn.png"):
+def gerar_pdf_etiqueta(item, logo_path=None):
     """Gera PDF de etiqueta individual tamanho padrão 50x30mm."""
+    if logo_path is None:
+        logo_path = LOGO_PATH_DEFAULT
+
     pdf = FPDF(orientation='L', unit='mm', format=(30, 50))
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
@@ -27,9 +35,8 @@ def gerar_pdf_etiqueta(item, logo_path="ispn.png"):
 
     # 1. LOGO E TEXTO "PATRIMÔNIO" NO TOPO
     y_cursor = 2.0
-    if logo_path and os.path.exists(logo_path):
+    if os.path.exists(logo_path):
         try:
-            # Insere a logo ispn.png centralizada (largura 16mm)
             pdf.image(logo_path, x=17, y=y_cursor, w=16)
             y_cursor += 7.5
         except Exception:
@@ -64,8 +71,11 @@ def gerar_pdf_etiqueta(item, logo_path="ispn.png"):
 
     return bytes(pdf.output(dest='S'))
 
-def render_etiquetas(patrimonio_db, logo_path="ispn.png"):
+def render_etiquetas(patrimonio_db, logo_path=None):
     """Exibe a interface de geração e impressão de etiquetas."""
+    if logo_path is None:
+        logo_path = LOGO_PATH_DEFAULT
+
     if not patrimonio_db:
         st.info("Nenhum patrimônio cadastrado para geração de etiqueta.")
         return
@@ -85,11 +95,13 @@ def render_etiquetas(patrimonio_db, logo_path="ispn.png"):
                 bc_buffer = gerar_codigo_barras(str(item.get('etiqueta', '00000')))
                 
                 with st.container(border=True):
+                    # Exibe a logo se o arquivo ispn.png existir na raiz
                     if os.path.exists(logo_path):
                         col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
                         with col_l2:
                             st.image(logo_path, use_container_width=True)
 
+                    # Texto "PATRIMÔNIO" (sem "ISPN" duplicado)
                     st.markdown("<h4 style='text-align: center; color: #006432; margin: 2px 0; font-size: 16px;'>PATRIMÔNIO</h4>", unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 2px 0;'>{item.get('nome', '')}</p>", unsafe_allow_html=True)
                     st.image(bc_buffer, use_container_width=True)
