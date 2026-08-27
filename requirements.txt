@@ -8,3 +8,4 @@ pytz
 fpdf2
 python-barcode
 Pillow
+qrcode
