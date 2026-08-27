@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 
 def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
-    st.title("Gestão de Patrimônio")
     
     # --- FORMULÁRIO ABERTO POR PADRÃO ---
     with st.expander("Cadastrar Novo Patrimônio", expanded=True):
