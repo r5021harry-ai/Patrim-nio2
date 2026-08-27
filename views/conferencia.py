@@ -3,18 +3,37 @@ import pandas as pd
 from datetime import datetime
 from fpdf import FPDF
 
+def normalizar_texto(texto):
+    """
+    Remove caracteres incompatíveis com a codificação Latin-1 padrão do FPDF.
+    """
+    if texto is None:
+        return ""
+    txt = str(texto)
+    # Substituições comuns que quebram no FPDF
+    substituicoes = {
+        "–": "-", "—": "-", "“": '"', "”": '"', "‘": "'", "’": "'",
+        "º": ".", "ª": ".", "•": "-"
+    }
+    for orig, dest in substituicoes.items():
+        txt = txt.replace(orig, dest)
+    
+    # Encode para latin-1 ignorando caracteres não suportados
+    return txt.encode('latin-1', 'replace').decode('latin-1')
+
 class PDFRelatorioVistoria(FPDF):
     def header(self):
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'RELATÓRIO DE AUDITORIA E VISTORIA DE PATRIMÔNIO', 0, 1, 'C')
+        self.cell(0, 10, normalizar_texto('RELATÓRIO DE AUDITORIA E VISTORIA DE PATRIMÔNIO'), 0, 1, 'C')
         self.set_font('Arial', 'I', 9)
-        self.cell(0, 5, f'Gerado em: {datetime.now().strftime("%d/%m/%Y às %H:%M:%S")}', 0, 1, 'C')
+        dt_str = datetime.now().strftime("%d/%m/%Y as %H:%M:%S")
+        self.cell(0, 5, normalizar_texto(f'Gerado em: {dt_str}'), 0, 1, 'C')
         self.ln(5)
 
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, normalizar_texto(f'Página {self.page_no()}'), 0, 0, 'C')
 
 def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
     pdf = PDFRelatorioVistoria()
@@ -23,8 +42,8 @@ def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
     
     # Cabeçalho do Filtro
     pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 8, f"Filtro por Categoria: {filtro_categoria}", 0, 1, 'L')
-    pdf.cell(0, 8, f"Total de Itens Auditados: {len(itens_auditados)}", 0, 1, 'L')
+    pdf.cell(0, 8, normalizar_texto(f"Filtro por Categoria: {filtro_categoria}"), 0, 1, 'L')
+    pdf.cell(0, 8, normalizar_texto(f"Total de Itens Auditados: {len(itens_auditados)}"), 0, 1, 'L')
     pdf.ln(3)
 
     for idx, item in enumerate(itens_auditados, 1):
@@ -32,8 +51,8 @@ def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
         pdf.set_font("Arial", "B", 10)
         
         # Título do Item
-        nome_bem = str(item.get('nome', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        pdf.cell(0, 7, f"Item #{idx} - {nome_bem}", 1, 1, 'L', fill=True)
+        nome_bem = normalizar_texto(item.get('nome', 'N/A'))
+        pdf.cell(0, 7, normalizar_texto(f"Item #{idx} - {nome_bem}"), 1, 1, 'L', fill=True)
         
         pdf.set_font("Arial", size=9)
         
@@ -41,25 +60,26 @@ def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
         val_float = item.get("valor_unitario", 0.0)
         val_str = f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-        # Dados em colunas/linhas
-        etiq = str(item.get('etiqueta', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        cat = str(item.get('categoria', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        loc = str(item.get('localizacao', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        resp = str(item.get('responsavel', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        est = str(item.get('estado', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        aud = str(item.get('auditor', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        dt_vist = str(item.get('data_vistoria', 'N/A')).encode('latin-1', 'replace').decode('latin-1')
-        obs = str(item.get('obs_vistoria', 'Sem observações')).encode('latin-1', 'replace').decode('latin-1')
+        # Dados tratando a codificação
+        etiq = normalizar_texto(item.get('etiqueta', 'N/A'))
+        cat = normalizar_texto(item.get('categoria', 'N/A'))
+        loc = normalizar_texto(item.get('localizacao', 'N/A'))
+        resp = normalizar_texto(item.get('responsavel', 'N/A'))
+        est = normalizar_texto(item.get('estado', 'N/A'))
+        aud = normalizar_texto(item.get('auditor', 'N/A'))
+        dt_vist = normalizar_texto(item.get('data_vistoria', 'N/A'))
+        obs = normalizar_texto(item.get('obs_vistoria', 'Sem observações'))
 
-        pdf.multi_cell(0, 5, 
-            f"• Etiqueta/Código: {etiq} | Categoria: {cat}\n"
-            f"• Localização: {loc} | Responsável: {resp}\n"
-            f"• Valor do Bem: {val_str} | Data da Vistoria: {dt_vist}\n"
-            f"• Condição/Situação Atual: {est} | Auditor Responsável: {aud}\n"
-            f"• Fotos Anexadas: {item.get('qtd_fotos', 0)} foto(s)\n"
-            f"• Observações/Avarias: {obs}", 
-            border=1
+        bloco_texto = (
+            f"- Etiqueta/Codigo: {etiq} | Categoria: {cat}\n"
+            f"- Localizacao: {loc} | Responsavel: {resp}\n"
+            f"- Valor do Bem: {val_str} | Data da Vistoria: {dt_vist}\n"
+            f"- Condicao/Situacao Atual: {est} | Auditor Responsavel: {aud}\n"
+            f"- Fotos Anexadas: {item.get('qtd_fotos', 0)} foto(s)\n"
+            f"- Observacoes/Avarias: {obs}"
         )
+
+        pdf.multi_cell(0, 5, normalizar_texto(bloco_texto), border=1)
         pdf.ln(4)
 
     return bytes(pdf.output(dest='S'))
@@ -216,7 +236,7 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
                     "Nome": item.get("nome"),
                     "Valor": val_s,
                     "Data Vistoria": audit_info.get("data_vistoria", "-"),
-                    "Situação Actual": item.get("estado"),
+                    "Situação Atual": item.get("estado"),
                     "Obs. Vistoria": audit_info.get("obs_vistoria", "-"),
                     "Fotos": audit_info.get("qtd_fotos", 0)
                 })
