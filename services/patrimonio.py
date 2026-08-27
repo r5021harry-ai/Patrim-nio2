@@ -4,28 +4,35 @@ import tempfile
 from datetime import datetime
 from database.db import save_json, PATRIMONIO_FILE, HISTORICO_FILE
 
-# Importações para geração do PDF e Código de Barras
+# Importações para geração do PDF e QR Code
 from fpdf import FPDF
-import barcode
-from barcode.writer import ImageWriter
+import qrcode
 
 # Caminho absoluto para encontrar a imagem ispn.png na pasta raiz
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LOGO_PATH_DEFAULT = os.path.join(BASE_DIR, "ispn.png")
 
 
-def gerar_codigo_barras(etiqueta_str):
-    """Gera o buffer de imagem PNG do código de barras."""
+def gerar_qrcode(conteudo_str):
+    """Gera o buffer de imagem PNG do QR Code contendo as informações/etiqueta."""
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=6,
+        border=1,
+    )
+    qr.add_data(conteudo_str)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    
     rv = io.BytesIO()
-    code128 = barcode.get_barcode_class('code128')
-    bc = code128(etiqueta_str, writer=ImageWriter())
-    bc.write(rv, options={"module_height": 10.0, "font_size": 10, "text_distance": 3.0, "quiet_zone": 2.0})
+    img.save(rv, format="PNG")
     rv.seek(0)
     return rv
 
 
 def gerar_pdf_etiqueta(item, logo_path=None):
-    """Gera PDF de etiqueta individual 50x30mm com logo ispn.png e apenas texto 'PATRIMÔNIO'."""
+    """Gera PDF de etiqueta individual (50x30mm) com logo ispn.png, texto 'PATRIMÔNIO' e QR Code."""
     if logo_path is None:
         logo_path = LOGO_PATH_DEFAULT
 
@@ -42,33 +49,40 @@ def gerar_pdf_etiqueta(item, logo_path=None):
     y_cursor = 2.0
     if os.path.exists(logo_path):
         try:
-            # Insere a logo centralizada (largura 16mm)
-            pdf.image(logo_path, x=17, y=y_cursor, w=16)
-            y_cursor += 7.5
+            # Insere a logo centralizada (largura 14mm)
+            pdf.image(logo_path, x=18, y=y_cursor, w=14)
+            y_cursor += 6.5
         except Exception:
             pass
 
-    # 2. TEXTO "PATRIMÔNIO" (SEM "ISPN" DUPLICADO)
+    # 2. TEXTO "PATRIMÔNIO"
     pdf.set_y(y_cursor)
     pdf.set_font("Arial", "B", 7)
     pdf.set_text_color(0, 100, 50)
     pdf.cell(0, 3, "PATRIMÔNIO", 0, 1, 'C')
 
     # 3. NOME DO ITEM
-    pdf.set_font("Arial", "B", 7)
+    pdf.set_font("Arial", "B", 6.5)
     pdf.set_text_color(0, 0, 0)
     nome_bem = str(item.get('nome', 'N/A'))[:25]
-    pdf.cell(0, 3.5, nome_bem, 0, 1, 'C')
+    pdf.cell(0, 3, nome_bem, 0, 1, 'C')
 
-    # 4. CÓDIGO DE BARRAS
+    # 4. QR CODE (Centralizado)
     etiqueta = str(item.get('etiqueta', '00000'))
-    bc_buffer = gerar_codigo_barras(etiqueta)
+    qr_buffer = gerar_qrcode(etiqueta)
     
     with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
-        tmp.write(bc_buffer.getvalue())
+        tmp.write(qr_buffer.getvalue())
         tmp_path = tmp.name
 
-    pdf.image(tmp_path, x=6, y=14, w=38, h=13)
+    # Insere o QR Code centralizado (tamanho 11x11mm)
+    pdf.image(tmp_path, x=19.5, y=14.5, w=11, h=11)
+
+    # 5. TEXTO DA ETIQUETA ABAIXO DO QR CODE
+    pdf.set_y(26)
+    pdf.set_font("Arial", "", 5.5)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 2.5, f"Etiqueta: {etiqueta}", 0, 1, 'C')
     
     try:
         os.remove(tmp_path)
