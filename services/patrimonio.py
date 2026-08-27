@@ -8,9 +8,9 @@ from database.db import save_json, PATRIMONIO_FILE, HISTORICO_FILE
 from fpdf import FPDF
 import qrcode
 
-# Caminho absoluto para encontrar a imagem ispn.png na pasta raiz
+# Caminho absoluto para encontrar a imagem logo.png na pasta raiz
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-LOGO_PATH_DEFAULT = os.path.join(BASE_DIR, "ispn.png")
+LOGO_PATH_DEFAULT = os.path.join(BASE_DIR, "logo.png")
 
 
 def gerar_qrcode(conteudo_str):
@@ -32,7 +32,11 @@ def gerar_qrcode(conteudo_str):
 
 
 def gerar_pdf_etiqueta(item, logo_path=None):
-    """Gera PDF de etiqueta individual (50x30mm) com logo ispn.png, texto 'PATRIMÔNIO' e QR Code."""
+    """
+    Gera PDF de etiqueta individual (50x30mm) fiel ao modelo da foto:
+    - Esquerda: Logo completa (logo.png)
+    - Direita: Texto 'Patrimônio', QR Code e o Número do Código
+    """
     if logo_path is None:
         logo_path = LOGO_PATH_DEFAULT
 
@@ -40,34 +44,27 @@ def gerar_pdf_etiqueta(item, logo_path=None):
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
     
-    # Borda verde
-    pdf.set_line_width(0.3)
-    pdf.set_draw_color(0, 100, 50)
+    # Borda fina e arredondada/discreta ao redor da etiqueta
+    pdf.set_line_width(0.2)
+    pdf.set_draw_color(200, 200, 200)
     pdf.rect(1, 1, 48, 28)
 
-    # 1. LOGO ISPN NO TOPO
-    y_cursor = 2.0
+    # 1. ESQUERDA: LOGO COMPLETA (logo.png)
     if os.path.exists(logo_path):
         try:
-            # Insere a logo centralizada (largura 14mm)
-            pdf.image(logo_path, x=18, y=y_cursor, w=14)
-            y_cursor += 6.5
+            # Insere a logo.png alinhada à esquerda
+            pdf.image(logo_path, x=3, y=4, w=22)
         except Exception:
             pass
 
-    # 2. TEXTO "PATRIMÔNIO"
-    pdf.set_y(y_cursor)
-    pdf.set_font("Arial", "B", 7)
-    pdf.set_text_color(0, 100, 50)
-    pdf.cell(0, 3, "PATRIMÔNIO", 0, 1, 'C')
+    # 2. DIREITA: ETIQUETA E QR CODE
+    # Texto "Patrimônio"
+    pdf.set_xy(26, 3)
+    pdf.set_font("Arial", "", 8)
+    pdf.set_text_color(70, 70, 70)
+    pdf.cell(21, 4, "Patrimônio", 0, 1, 'C')
 
-    # 3. NOME DO ITEM
-    pdf.set_font("Arial", "B", 6.5)
-    pdf.set_text_color(0, 0, 0)
-    nome_bem = str(item.get('nome', 'N/A'))[:25]
-    pdf.cell(0, 3, nome_bem, 0, 1, 'C')
-
-    # 4. QR CODE (Centralizado)
+    # QR Code
     etiqueta = str(item.get('etiqueta', '00000'))
     qr_buffer = gerar_qrcode(etiqueta)
     
@@ -75,14 +72,14 @@ def gerar_pdf_etiqueta(item, logo_path=None):
         tmp.write(qr_buffer.getvalue())
         tmp_path = tmp.name
 
-    # Insere o QR Code centralizado (tamanho 11x11mm)
-    pdf.image(tmp_path, x=19.5, y=14.5, w=11, h=11)
+    # Insere o QR Code centralizado no lado direito
+    pdf.image(tmp_path, x=29.5, y=7.5, w=14, h=14)
 
-    # 5. TEXTO DA ETIQUETA ABAIXO DO QR CODE
-    pdf.set_y(26)
-    pdf.set_font("Arial", "", 5.5)
-    pdf.set_text_color(80, 80, 80)
-    pdf.cell(0, 2.5, f"Etiqueta: {etiqueta}", 0, 1, 'C')
+    # Número da Etiqueta
+    pdf.set_xy(26, 22)
+    pdf.set_font("Arial", "", 8)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(21, 4, etiqueta, 0, 1, 'C')
     
     try:
         os.remove(tmp_path)
