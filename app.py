@@ -11,22 +11,10 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 
-# --- CONFIGURAÇÃO DA PÁGINA (FAVICON COM A LOGO DO ISPN) ---
-LOGO_URL = "https://ispn.org.br/wp-content/uploads/2019/07/logo-ispn.png"
-
-try:
-    if os.path.exists("logo_ispn.png"):
-        logo_icon = Image.open("logo_ispn.png")
-    elif os.path.exists("logo.png"):
-        logo_icon = Image.open("logo.png")
-    else:
-        logo_icon = LOGO_URL
-except Exception:
-    logo_icon = LOGO_URL
-
+# --- CONFIGURAÇÃO DA PÁGINA (FAVICON CORRIGIDO SEM DISTORÇÃO) ---
 st.set_page_config(
     page_title="Patrimônio ISPN", 
-    page_icon=logo_icon, 
+    page_icon="🏢", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
