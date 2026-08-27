@@ -1,6 +1,27 @@
 import streamlit as st
 import pandas as pd
 
+def processar_moeda(valor_input):
+    """
+    Recebe entradas como 1500, 1500.85, 1500,85 ou R$ 1.500,00
+    Retorna uma tupla: (texto_formatado_brl, valor_float)
+    """
+    if valor_input is None or str(valor_input).strip() == "":
+        return "", 0.0
+
+    val_str = str(valor_input).replace("R$", "").strip()
+
+    # Trata separadores do padrão brasileiro (1.500,85 -> 1500.85)
+    if "," in val_str:
+        val_str = val_str.replace(".", "").replace(",", ".")
+
+    try:
+        val_float = float(val_str)
+        texto_brl = f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return texto_brl, val_float
+    except ValueError:
+        return str(valor_input), 0.0
+
 def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
     
     # --- FORMULÁRIO ABERTO POR PADRÃO ---
@@ -8,19 +29,22 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
         with st.form("form_novo_patrimonio"):
             st.markdown("### Dados da Nota Fiscal / Compra")
             
-            col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1])
+            col_nf1, col_nf2, col_nf3 = st.columns([1, 2, 1.5])
             with col_nf1:
                 numero_nf = st.text_input("Nº NF")
             with col_nf2:
                 fornecedor = st.text_input("Nome do Fornecedor")
             with col_nf3:
-                valor_unitario = st.number_input(
-                    "Valor Unitário do Bem (R$)", 
-                    value=0.0, 
-                    min_value=0.0, 
-                    step=10.0,
-                    format="%.2f"
+                valor_raw = st.text_input(
+                    "Valor Unitário do Bem (R$)",
+                    placeholder="Ex: 1500 ou 1500,85",
+                    help="Digite 1500 para R$ 1.500,00 ou 1500,85 para R$ 1.500,85"
                 )
+
+            # Processa a formatação da moeda e o float correspondente
+            valor_formatado_exibicao, valor_unitario = processar_moeda(valor_raw)
+            if valor_formatado_exibicao:
+                st.caption(f"Valor formatado: **{valor_formatado_exibicao}**")
 
             # Upload da Nota Fiscal
             arquivo_nf = st.file_uploader(
@@ -151,11 +175,14 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         
                         e_nf = st.text_input("Nº NF", value=item_obj.get("numero_nf", ""))
                         e_forn = st.text_input("Fornecedor", value=item_obj.get("fornecedor", ""))
-                        e_val = st.number_input(
-                            "Valor Unitário (R$)", 
-                            value=float(item_obj.get("valor_unitario", item_obj.get("valor", 0.0))), 
-                            format="%.2f"
-                        )
+                        
+                        # Recupera o valor cadastrado e o formata para inicializar no campo de edição
+                        val_atual = item_obj.get("valor_unitario", item_obj.get("valor", 0.0))
+                        val_str_inicial, _ = processar_moeda(val_atual)
+                        
+                        e_val_raw = st.text_input("Valor Unitário (R$)", value=val_str_inicial)
+                        e_val_txt, e_val_float = processar_moeda(e_val_raw)
+                        
                         e_arquivo = st.file_uploader("Substituir Nota Fiscal (PDF/Imagem)", type=["pdf", "png", "jpg", "jpeg"])
                         
                         e_nome = st.text_input("Nome do bem", value=item_obj.get("nome", ""))
@@ -169,7 +196,7 @@ def render_gestao(patrimonio_db, historico_db, cidades_db=None, save_callback=No
                         if st.form_submit_button("Salvar Alterações", type="primary"):
                             patrimonio_db[idx_item]["numero_nf"] = e_nf
                             patrimonio_db[idx_item]["fornecedor"] = e_forn
-                            patrimonio_db[idx_item]["valor_unitario"] = e_val
+                            patrimonio_db[idx_item]["valor_unitario"] = e_val_float
                             
                             if e_arquivo is not None:
                                 patrimonio_db[idx_item]["arquivo_nf"] = {
