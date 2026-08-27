@@ -6,3 +6,5 @@ Pillow
 reportlab
 pytz
 fpdf2
+python-barcode
+Pillow
