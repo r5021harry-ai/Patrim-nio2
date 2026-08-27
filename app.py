@@ -10,14 +10,14 @@ from PIL import Image
 from fpdf import FPDF
 import qrcode
 
-# --- CAMINHO DA LOGO ---
+# --- CAMINHO DA LOGO ATUALIZADO ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOGO_PATH = os.path.join(BASE_DIR, "logo.png")
+LOGO_PATH = os.path.join(BASE_DIR, "ispn2.png")
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Patrimônio ISPN", 
-    page_icon="images.jpg" if os.path.exists("images.jpg") else "logo.png", 
+    page_icon="ispn2.png" if os.path.exists("ispn2.png") else "images.jpg", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -166,7 +166,7 @@ def gerar_pdf_etiqueta(codigo_etiqueta):
     pdf.set_draw_color(200, 200, 200)
     pdf.rect(1, 1, 48, 28)
 
-    # 1. ESQUERDA: LOGO COMPLETA (logo.png)
+    # 1. ESQUERDA: LOGO COMPLETA (ispn2.png)
     if os.path.exists(LOGO_PATH):
         try:
             pdf.image(LOGO_PATH, x=3, y=4, w=22)
@@ -298,10 +298,10 @@ def login_screen():
     st.markdown("<br><br>", unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 2, 1])
     with col2:
-        if os.path.exists("logo.png"):
+        if os.path.exists("ispn2.png"):
             img_c1, img_c2, img_c3 = st.columns([1, 2, 1])
             with img_c2:
-                st.image("logo.png", use_container_width=True)
+                st.image("ispn2.png", use_container_width=True)
                 
         st.markdown(
             """
@@ -336,10 +336,10 @@ if not st.session_state.logged_in:
 else:
     # --- SIDEBAR ---
     with st.sidebar:
-        if os.path.exists("logo.png"):
+        if os.path.exists("ispn2.png"):
             side_c1, side_c2, side_c3 = st.columns([1, 2, 1])
             with side_c2:
-                st.image("logo.png", use_container_width=True)
+                st.image("ispn2.png", use_container_width=True)
                 
         st.markdown(
             f"""
@@ -557,7 +557,7 @@ else:
             except TypeError:
                 render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db)
 
-    # --- ABA 3: EMISSÃO DE ETIQUETAS (ATUALIZADA) ---
+    # --- ABA 3: EMISSÃO DE ETIQUETAS ---
     with aba[3]:
         st.subheader("Gerador de Etiquetas Patrimoniais")
         df_patrimonio = pd.DataFrame(st.session_state.patrimonio_db)
@@ -587,7 +587,7 @@ else:
                     
                     c_etiqueta, c_info = st.columns([1, 1.2])
                     
-                    # PREVISÃO DA ETIQUETA NA TELA (ESTILO FOTO)
+                    # PREVISÃO DA ETIQUETA NA TELA
                     with c_etiqueta:
                         qr_buffer = gerar_qrcode(etiqueta_cod)
                         
