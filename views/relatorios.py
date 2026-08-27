@@ -28,7 +28,6 @@ def gerar_pdf_etiqueta(item, logo_path="logo.png"):
     # 1. LOGO OU TÍTULO NO TOPO
     if logo_path and os.path.exists(logo_path):
         try:
-            # Insere a logo centralizada no topo (largura 18mm)
             pdf.image(logo_path, x=16, y=2.5, w=18)
             pdf.set_y(8.5)
         except Exception:
@@ -46,7 +45,7 @@ def gerar_pdf_etiqueta(item, logo_path="logo.png"):
     nome_bem = str(item.get('nome', 'N/A'))[:25]
     pdf.cell(0, 3.5, nome_bem, 0, 1, 'C')
 
-    # 3. CÓDIGO DE BARRAS (já possui o número impresso abaixo pelo próprio gerador)
+    # 3. CÓDIGO DE BARRAS
     etiqueta = str(item.get('etiqueta', '00000'))
     bc_buffer = gerar_codigo_barras(etiqueta)
     
@@ -65,8 +64,7 @@ def gerar_pdf_etiqueta(item, logo_path="logo.png"):
     return bytes(pdf.output(dest='S'))
 
 def render_etiquetas(patrimonio_db, logo_path="logo.png"):
-    st.subheader("Gerador de Etiquetas Patrimoniais")
-
+    """Exibe a interface de geração e impressão de etiquetas."""
     if not patrimonio_db:
         st.info("Nenhum patrimônio cadastrado para geração de etiqueta.")
         return
@@ -132,3 +130,8 @@ def render_etiquetas(patrimonio_db, logo_path="logo.png"):
                 **Placa:** {item.get('placa') or 'N/A'}  
                 **Observações:** {item.get('observacoes') or 'Sem observações'}
                 """)
+
+def render_relatorios(patrimonio_db, *args, **kwargs):
+    """Função principal chamada pelo app.py para renderizar a página de relatórios/etiquetas."""
+    st.title("Relatórios e Etiquetas")
+    render_etiquetas(patrimonio_db)
