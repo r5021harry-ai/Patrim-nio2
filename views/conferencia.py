@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 
 def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
-    st.title("Conferência e Auditoria de Patrimônio")
+    # Título removido para evitar duplicidade com a navegação
 
     if not patrimonio_db:
         st.info("Nenhum patrimônio cadastrado para realizar conferência.")
