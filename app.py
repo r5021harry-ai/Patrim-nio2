@@ -14,7 +14,7 @@ from reportlab.graphics.barcode import code128
 # --- CONFIGURAÇÃO DA PÁGINA (FAVICON CORRIGIDO SEM DISTORÇÃO) ---
 st.set_page_config(
     page_title="Patrimônio ISPN", 
-    page_icon="🏢", 
+    page_icon="images.jpg", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
