@@ -70,7 +70,7 @@ def render_etiquetas(patrimonio_db, logo_path="logo.png"):
         return
 
     opcoes = [f"{item.get('etiqueta', '')} - {item.get('nome', '')}" for item in patrimonio_db]
-    sel_item_str = st.selectbox("Selecione o Patrimônio:", opcoes)
+    sel_item_str = st.selectbox("Selecione o Patrimônio:", opcoes, key="relatorios_sel_patrimonio_unique")
 
     if sel_item_str:
         etiqueta_sel = sel_item_str.split(" - ")[0].strip()
@@ -101,7 +101,8 @@ def render_etiquetas(patrimonio_db, logo_path="logo.png"):
                     file_name=f"etiqueta_{item.get('etiqueta')}.pdf",
                     mime="application/pdf",
                     type="primary",
-                    use_container_width=True
+                    use_container_width=True,
+                    key="btn_download_etiqueta_pdf_unique"
                 )
 
             # --- DETALHES FORMATADOS AO LADO ---
