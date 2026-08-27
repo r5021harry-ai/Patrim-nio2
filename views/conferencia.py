@@ -10,7 +10,6 @@ def normalizar_texto(texto):
     if texto is None:
         return ""
     txt = str(texto)
-    # Substituições comuns que quebram no FPDF
     substituicoes = {
         "–": "-", "—": "-", "“": '"', "”": '"', "‘": "'", "’": "'",
         "º": ".", "ª": ".", "•": "-"
@@ -18,7 +17,6 @@ def normalizar_texto(texto):
     for orig, dest in substituicoes.items():
         txt = txt.replace(orig, dest)
     
-    # Encode para latin-1 ignorando caracteres não suportados
     return txt.encode('latin-1', 'replace').decode('latin-1')
 
 class PDFRelatorioVistoria(FPDF):
@@ -40,7 +38,6 @@ def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
     pdf.add_page()
     pdf.set_font("Arial", size=10)
     
-    # Cabeçalho do Filtro
     pdf.set_font("Arial", "B", 11)
     pdf.cell(0, 8, normalizar_texto(f"Filtro por Categoria: {filtro_categoria}"), 0, 1, 'L')
     pdf.cell(0, 8, normalizar_texto(f"Total de Itens Auditados: {len(itens_auditados)}"), 0, 1, 'L')
@@ -50,17 +47,14 @@ def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
         pdf.set_fill_color(230, 240, 230)
         pdf.set_font("Arial", "B", 10)
         
-        # Título do Item
         nome_bem = normalizar_texto(item.get('nome', 'N/A'))
         pdf.cell(0, 7, normalizar_texto(f"Item #{idx} - {nome_bem}"), 1, 1, 'L', fill=True)
         
         pdf.set_font("Arial", size=9)
         
-        # Formata o valor unitário
         val_float = item.get("valor_unitario", 0.0)
         val_str = f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-        # Dados tratando a codificação
         etiq = normalizar_texto(item.get('etiqueta', 'N/A'))
         cat = normalizar_texto(item.get('categoria', 'N/A'))
         loc = normalizar_texto(item.get('localizacao', 'N/A'))
@@ -87,12 +81,9 @@ def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
 def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callback=None):
     st.subheader("Conferência / Auditoria de Patrimônio")
 
-    # --- SELEÇÃO DE LOCALIZAÇÃO ---
     locais = cidades_db.get("lista", ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]) if isinstance(cidades_db, dict) else ["Santa Inês – MA", "Sede DF", "Campo - Cerrado", "Almoxarifado"]
-    
     local_selecionado = st.selectbox("Selecione o Local para Auditoria", locais, key="conf_local_sel")
 
-    # Filtrar itens do local selecionado
     itens_do_local = [item for item in patrimonio_db if item.get("localizacao") == local_selecionado]
     
     if "auditados" not in st.session_state:
@@ -102,7 +93,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
     conferidos_local = sum(1 for item in itens_do_local if str(item.get("etiqueta")) in st.session_state.auditados)
     pendentes_local = total_local - conferidos_local
 
-    # --- CARDS DE MÉTRICAS ---
     c1, c2, c3 = st.columns(3)
     with c1:
         st.metric("Total no Local", total_local)
@@ -113,7 +103,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
 
     st.markdown("---")
 
-    # --- ABAS DE VISTORIA, CHECKLIST E RELATÓRIO ---
     aba_vistoria, aba_checklist, aba_relatorio = st.tabs([
         "Vistoria e Auditoria Física", 
         "Lista de Verificação", 
@@ -126,6 +115,11 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
     with aba_vistoria:
         st.markdown("### Seleção e Registro de Vistoria")
         
+        # Exibe mensagem de sucesso se a última vistoria foi salva com êxito
+        if st.session_state.get("sucesso_vistoria_msg"):
+            st.success(st.session_state.sucesso_vistoria_msg)
+            del st.session_state["sucesso_vistoria_msg"]
+
         if patrimonio_db:
             opcoes_itens = ["-- Selecione o patrimônio para vistoria --"] + [
                 f"{item.get('etiqueta', '')} - {item.get('nome', '')} ({item.get('localizacao', '')})"
@@ -134,10 +128,14 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
         else:
             opcoes_itens = ["Nenhum item cadastrado"]
 
+        # Controle da seleção no session_state para permitir reset
+        if "sb_vistoria_item_val" not in st.session_state:
+            st.session_state.sb_vistoria_item_val = opcoes_itens[0]
+
         item_selecionado_str = st.selectbox(
             "Pesquise ou Selecione a Etiqueta/Nome do Bem:",
             options=opcoes_itens,
-            key="sb_vistoria_item"
+            key="sb_vistoria_item_val"
         )
 
         if item_selecionado_str and item_selecionado_str not in ["-- Selecione o patrimônio para vistoria --", "Nenhum item cadastrado"]:
@@ -151,7 +149,8 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
                 
                 st.info(f"**Item:** {item_obj.get('nome')} | **Categoria:** {item_obj.get('categoria')} | **Valor:** {val_str} | **Local:** {item_obj.get('localizacao')}")
 
-                with st.form("form_registro_vistoria", clear_on_submit=False):
+                # Form com limpa automática (clear_on_submit=True)
+                with st.form("form_registro_vistoria", clear_on_submit=True):
                     st.markdown("#### Formulário de Auditoria Física")
                     
                     col_v1, col_v2 = st.columns(2)
@@ -169,29 +168,27 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
                             placeholder="Descreva o estado do bem, defeitos visíveis ou necessidade de reparo..."
                         )
 
-                    st.markdown("#### Upload de Fotos da Vistoria (Até 3 Fotos)")
-                    col_f1, col_f2, col_f3 = st.columns(3)
-                    with col_f1:
-                        foto1 = st.file_uploader("Foto 1 (Visão Geral)", type=["jpg", "jpeg", "png"], key="foto1")
-                    with col_f2:
-                        foto2 = st.file_uploader("Foto 2 (Etiqueta/Nº Série)", type=["jpg", "jpeg", "png"], key="foto2")
-                    with col_f3:
-                        foto3 = st.file_uploader("Foto 3 (Detalhe/Avaria)", type=["jpg", "jpeg", "png"], key="foto3")
+                    # Campo Único para até 3 Fotos
+                    fotos_anexadas_upload = st.file_uploader(
+                        "Upload de Fotos da Vistoria (Selecione até 3 fotos)", 
+                        type=["jpg", "jpeg", "png"], 
+                        accept_multiple_files=True,
+                        key="fotos_vistoria_unicas"
+                    )
 
                     submitted_vistoria = st.form_submit_button("Confirmar e Salvar Vistoria", type="primary", use_container_width=True)
 
                     if submitted_vistoria:
                         fotos_anexadas = []
-                        for f in [foto1, foto2, foto3]:
-                            if f is not None:
+                        if fotos_anexadas_upload:
+                            for f in fotos_anexadas_upload[:3]:
                                 fotos_anexadas.append({"nome": f.name, "bytes": f.getvalue()})
 
-                        # Atualiza o estado do bem no BD geral
+                        # Atualiza estado no BD geral
                         patrimonio_db[idx_item]["estado"] = novo_estado
-                        
                         dt_atual = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-                        # Armazena dados completos no histórico de auditoria
+                        # Salva item vistoriado
                         registro_auditoria = {
                             "etiqueta": etiqueta_sel,
                             "nome": item_obj.get("nome"),
@@ -212,7 +209,10 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
                         if save_callback:
                             save_callback()
 
-                        st.success(f"Vistoria do item '{item_obj.get('nome')}' concluída em {dt_atual}!")
+                        # Define mensagem e reseta o selectbox para o próximo item
+                        st.session_state.sucesso_vistoria_msg = f"OK! Vistoria do item '{item_obj.get('nome')}' gravada com sucesso!"
+                        st.session_state.sb_vistoria_item_val = opcoes_itens[0]
+                        st.toast("Vistoria salva com sucesso!", icon="✅")
                         st.rerun()
 
     # -------------------------------------------------------------
@@ -267,7 +267,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
 
             st.write(f"**Itens no relatório:** {len(itens_filtrados)}")
             
-            # Tabela de prévia dos dados completos
             dados_prev = []
             for it in itens_filtrados:
                 vf = it.get("valor_unitario", 0.0)
@@ -284,7 +283,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
             
             st.dataframe(pd.DataFrame(dados_prev), use_container_width=True, hide_index=True)
 
-            # Geração do arquivo PDF para download
             pdf_bytes = gerar_pdf_vistoria(itens_filtrados, cat_relatorio)
             
             st.download_button(
