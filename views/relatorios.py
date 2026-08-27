@@ -14,7 +14,7 @@ def gerar_codigo_barras(etiqueta_str):
     rv.seek(0)
     return rv
 
-def gerar_pdf_etiqueta(item, logo_path="logo.png"):
+def gerar_pdf_etiqueta(item, logo_path="ispn.png"):
     """Gera PDF de etiqueta individual tamanho padrão 50x30mm."""
     pdf = FPDF(orientation='L', unit='mm', format=(30, 50))
     pdf.set_auto_page_break(auto=False)
@@ -25,19 +25,20 @@ def gerar_pdf_etiqueta(item, logo_path="logo.png"):
     pdf.set_draw_color(0, 100, 50)
     pdf.rect(1, 1, 48, 28)
 
-    # 1. LOGO OU TÍTULO NO TOPO
+    # 1. LOGO E TEXTO "PATRIMÔNIO" NO TOPO
+    y_cursor = 2.0
     if logo_path and os.path.exists(logo_path):
         try:
-            pdf.image(logo_path, x=16, y=2.5, w=18)
-            pdf.set_y(8.5)
+            # Insere a logo ispn.png centralizada (largura 16mm)
+            pdf.image(logo_path, x=17, y=y_cursor, w=16)
+            y_cursor += 7.5
         except Exception:
-            pdf.set_font("Arial", "B", 8)
-            pdf.set_text_color(0, 100, 50)
-            pdf.cell(0, 4, "ISPN PATRIMÔNIO", 0, 1, 'C')
-    else:
-        pdf.set_font("Arial", "B", 8)
-        pdf.set_text_color(0, 100, 50)
-        pdf.cell(0, 4, "ISPN PATRIMÔNIO", 0, 1, 'C')
+            pass
+
+    pdf.set_y(y_cursor)
+    pdf.set_font("Arial", "B", 7)
+    pdf.set_text_color(0, 100, 50)
+    pdf.cell(0, 3, "PATRIMÔNIO", 0, 1, 'C')
 
     # 2. NOME DO ITEM
     pdf.set_font("Arial", "B", 7)
@@ -54,7 +55,7 @@ def gerar_pdf_etiqueta(item, logo_path="logo.png"):
         tmp.write(bc_buffer.getvalue())
         tmp_path = tmp.name
 
-    pdf.image(tmp_path, x=6, y=12, w=38, h=15)
+    pdf.image(tmp_path, x=6, y=14, w=38, h=13)
     
     try:
         os.remove(tmp_path)
@@ -63,7 +64,7 @@ def gerar_pdf_etiqueta(item, logo_path="logo.png"):
 
     return bytes(pdf.output(dest='S'))
 
-def render_etiquetas(patrimonio_db, logo_path="logo.png"):
+def render_etiquetas(patrimonio_db, logo_path="ispn.png"):
     """Exibe a interface de geração e impressão de etiquetas."""
     if not patrimonio_db:
         st.info("Nenhum patrimônio cadastrado para geração de etiqueta.")
@@ -88,10 +89,9 @@ def render_etiquetas(patrimonio_db, logo_path="logo.png"):
                         col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
                         with col_l2:
                             st.image(logo_path, use_container_width=True)
-                    else:
-                        st.markdown("<h4 style='text-align: center; color: #006432; margin: 0;'>ISPN PATRIMÔNIO</h4>", unsafe_allow_html=True)
 
-                    st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 5px 0;'>{item.get('nome', '')}</p>", unsafe_allow_html=True)
+                    st.markdown("<h4 style='text-align: center; color: #006432; margin: 2px 0; font-size: 16px;'>PATRIMÔNIO</h4>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; font-weight: bold; margin: 2px 0;'>{item.get('nome', '')}</p>", unsafe_allow_html=True)
                     st.image(bc_buffer, use_container_width=True)
 
                 pdf_bytes = gerar_pdf_etiqueta(item, logo_path=logo_path)
