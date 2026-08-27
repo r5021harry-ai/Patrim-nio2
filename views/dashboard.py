@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 def render_dashboard(patrimonio_db):
-    st.title("📊 Dashboard Geral")
+    st.title("Dashboard Geral")
 
     if not patrimonio_db:
         st.info("Nenhum dado patrimonial cadastrado para exibição.")
@@ -10,23 +10,28 @@ def render_dashboard(patrimonio_db):
 
     df = pd.DataFrame(patrimonio_db)
 
-    # Identificação dinâmica de colunas
-    col_etiqueta = 'etiqueta' if 'etiqueta' in df.columns else 'patrimonio'
-    col_categoria = 'categoria' if 'categoria' in df.columns else 'tipo'
-    col_status = 'status' if 'status' in df.columns else 'estado'
-    col_local = 'localizacao' if 'localizacao' in df.columns else 'cidade'
+    # Mapeamento de colunas (com fallbacks flexíveis para maiúsculas/minúsculas)
+    col_etiqueta = next((c for c in ['etiqueta', 'patrimonio', 'Etiqueta', 'Patrimônio'] if c in df.columns), df.columns[0])
+    col_categoria = next((c for c in ['categoria', 'tipo', 'Categoria', 'Tipo'] if c in df.columns), None)
+    col_status = next((c for c in ['status', 'estado', 'Status', 'Estado'] if c in df.columns), None)
+    col_local = next((c for c in ['localizacao', 'cidade', 'Localização', 'Cidade'] if c in df.columns), None)
 
-    # Cartões de Métricas (KPIS)
+    # Cartões de Métricas (KPIs)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total de Bens", len(df))
-    
-    qtd_disp = len(df[df[col_status] == "Disponível"]) if col_status in df.columns else 0
+
+    if col_status:
+        # Busca insensível a maiúsculas/minúsculas para capturar variações do status
+        status_series = df[col_status].astype(str).str.strip().str.lower()
+        
+        qtd_disp = len(df[status_series.isin(["disponível", "disponivel", "bom", "novo"])])
+        qtd_uso = len(df[status_series.isin(["em uso", "uso", "alocado"])])
+        qtd_manut = len(df[status_series.isin(["manutenção", "manutencao", "reparo"])])
+    else:
+        qtd_disp, qtd_uso, qtd_manut = 0, 0, 0
+
     c2.metric("Disponíveis", qtd_disp)
-
-    qtd_uso = len(df[df[col_status] == "Em Uso"]) if col_status in df.columns else 0
     c3.metric("Em Uso", qtd_uso)
-
-    qtd_manut = len(df[df[col_status] == "Manutenção"]) if col_status in df.columns else 0
     c4.metric("Em Manutenção", qtd_manut)
 
     st.divider()
@@ -35,29 +40,29 @@ def render_dashboard(patrimonio_db):
     col_g1, col_g2 = st.columns(2)
 
     with col_g1:
-        st.subheader("📌 Bens por Categoria")
-        if col_categoria in df.columns:
-            # Agregação segura sem erro de coluna duplicada
-            cat_counts = df[col_categoria].value_counts().reset_index()
+        st.markdown("**Bens por Categoria**")
+        if col_categoria:
+            cat_counts = df[col_categoria].astype(str).value_counts().reset_index()
             cat_counts.columns = ["Categoria", "Quantidade"]
-            st.bar_chart(cat_counts.set_index("Categoria"))
+            st.bar_chart(cat_counts.set_index("Categoria"), color="#15803D")
         else:
             st.caption("Coluna de categoria não encontrada.")
 
     with col_g2:
-        st.subheader("📍 Bens por Localização")
-        if col_local in df.columns:
-            loc_counts = df[col_local].value_counts().reset_index()
+        st.markdown("**Bens por Localização**")
+        if col_local:
+            loc_counts = df[col_local].astype(str).value_counts().reset_index()
             loc_counts.columns = ["Localização", "Quantidade"]
-            st.bar_chart(loc_counts.set_index("Localização"))
+            st.bar_chart(loc_counts.set_index("Localização"), color="#15803D")
         else:
             st.caption("Coluna de localização não encontrada.")
 
     st.divider()
 
-    # Tabela Resumida por Categoria e Status (Corrigida)
-    st.subheader("📋 Resumo por Categoria e Status")
-    if col_categoria in df.columns and col_status in df.columns:
-        # Agrupamento seguro com count() explícito
+    # Tabela Resumida por Categoria e Status
+    st.markdown("**Resumo por Categoria e Status**")
+    if col_categoria and col_status:
         df_cat_status = df.groupby([col_categoria, col_status]).size().unstack(fill_value=0)
         st.dataframe(df_cat_status, use_container_width=True)
+    else:
+        st.caption("Dados insuficientes para cruzar Categoria e Status.")
