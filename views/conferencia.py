@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from fpdf import FPDF
+import tempfile
+import os
 
 def normalizar_texto(texto):
     """
@@ -74,7 +76,41 @@ def gerar_pdf_vistoria(itens_auditados, filtro_categoria="Todas"):
         )
 
         pdf.multi_cell(0, 5, normalizar_texto(bloco_texto), border=1)
-        pdf.ln(4)
+        pdf.ln(3)
+
+        # --- RENDERIZAÇÃO DAS FOTOS NO PDF ---
+        fotos = item.get("fotos", [])
+        if fotos:
+            pdf.set_font("Arial", "B", 9)
+            pdf.cell(0, 5, normalizar_texto("Registros Fotográficos da Vistoria:"), 0, 1, 'L')
+            
+            y_inicial = pdf.get_y()
+            largura_foto = 55
+            altura_foto = 40
+            espacamento = 5
+            x_inicial = pdf.get_x()
+
+            # Processa e insere até 3 fotos alinhadas na mesma linha
+            for f_idx, foto in enumerate(fotos[:3]):
+                try:
+                    ext = foto['nome'].split('.')[-1].lower()
+                    if ext not in ['jpg', 'jpeg', 'png']:
+                        ext = 'png'
+
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp_file:
+                        tmp_file.write(foto['bytes'])
+                        tmp_file_path = tmp_file.name
+
+                    pos_x = x_inicial + f_idx * (largura_foto + espacamento)
+                    pdf.image(tmp_file_path, x=pos_x, y=y_inicial, w=largura_foto, h=altura_foto)
+                    
+                    os.remove(tmp_file_path)
+                except Exception:
+                    pass
+
+            pdf.set_y(y_inicial + altura_foto + 6)
+        else:
+            pdf.ln(2)
 
     return bytes(pdf.output(dest='S'))
 
@@ -130,7 +166,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
         else:
             opcoes_itens = ["Nenhum item cadastrado"]
 
-        # Selectbox dinâmico sem alteração direta de estado
         item_selecionado_str = st.selectbox(
             "Pesquise ou Selecione a Etiqueta/Nome do Bem:",
             options=opcoes_itens,
@@ -204,7 +239,6 @@ def render_conferencia(patrimonio_db, historico_db, cidades_db=None, save_callba
                         if save_callback:
                             save_callback()
 
-                        # Incrementa a chave para redefinir o campo limpo
                         st.session_state.reset_vistoria_key += 1
                         st.session_state.sucesso_vistoria_msg = f"OK! Vistoria do item '{item_obj.get('nome')}' gravada com sucesso!"
                         st.toast("Vistoria salva com sucesso!", icon="✅")
