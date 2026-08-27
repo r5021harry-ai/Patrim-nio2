@@ -4,16 +4,29 @@ import pandas as pd
 import importlib
 import urllib.parse
 import io
+from PIL import Image
 
 # Importações para geração de PDF
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.graphics.barcode import code128
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# --- CONFIGURAÇÃO DA PÁGINA (FAVICON COM A LOGO DO ISPN) ---
+LOGO_URL = "https://ispn.org.br/wp-content/uploads/2019/07/logo-ispn.png"
+
+try:
+    if os.path.exists("logo_ispn.png"):
+        logo_icon = Image.open("logo_ispn.png")
+    elif os.path.exists("logo.png"):
+        logo_icon = Image.open("logo.png")
+    else:
+        logo_icon = LOGO_URL
+except Exception:
+    logo_icon = LOGO_URL
+
 st.set_page_config(
     page_title="Patrimônio ISPN", 
-    page_icon="📦", 
+    page_icon=logo_icon, 
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -181,7 +194,6 @@ except ModuleNotFoundError:
     rel_mod = importlib.import_module("views.relatorios")
     conf_mod = importlib.import_module("views.conferencia")
 
-# Força a atualização do cache de código do Python para refletir mudanças na hora
 importlib.reload(dash_mod)
 importlib.reload(gest_mod)
 importlib.reload(rel_mod)
@@ -323,7 +335,7 @@ else:
             unsafe_allow_html=True
         )
         
-        if st.button("🚪 Sair", use_container_width=True):
+        if st.button("Sair", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
 
@@ -333,7 +345,7 @@ else:
         if st.session_state.role == "admin":
             st.markdown("<p style='color: #15803D; font-weight: 700; font-size: 13px; text-transform: uppercase;'> PAINEL ADMIN</p>", unsafe_allow_html=True)
             
-            with st.expander("👥 Controle de Usuários e Logins"):
+            with st.expander("Controle de Usuários e Logins"):
                 dict_users = st.session_state.get("users_db", {})
                 
                 if dict_users:
@@ -346,7 +358,7 @@ else:
                         st.caption(f"Perfil atual: **{u_role}**")
                         
                         n_pass_adm = st.text_input(f"Nova senha para {u_sel}", type="password", key=f"p_{u_sel}")
-                        if st.button("💾 Salvar Nova Senha", key=f"btn_p_{u_sel}", type="primary"):
+                        if st.button("Salvar Nova Senha", key=f"btn_p_{u_sel}", type="primary"):
                             if n_pass_adm:
                                 update_password(st.session_state.users_db, u_sel, n_pass_adm)
                                 persistir_dados()
@@ -359,7 +371,7 @@ else:
                         if u_sel == st.session_state.username:
                             st.info("Você não pode apagar seu próprio usuário conectado.")
                         else:
-                            if st.button(f"🗑️ Apagar Usuário '{u_sel}'", key=f"del_{u_sel}"):
+                            if st.button(f"Apagar Usuário '{u_sel}'", key=f"del_{u_sel}"):
                                 if delete_user:
                                     delete_user(st.session_state.users_db, u_sel)
                                 else:
@@ -369,7 +381,7 @@ else:
                                 st.success(f"Usuário '{u_sel}' removido!")
                                 st.rerun()
 
-            with st.expander("➕ Cadastrar Novo Usuário"):
+            with st.expander("Cadastrar Novo Usuário"):
                 with st.form("form_novo_user"):
                     n_user = st.text_input("Usuário (ex: joao)")
                     n_pass = st.text_input("Senha", type="password")
@@ -383,20 +395,20 @@ else:
                             else:
                                 st.error(msg)
 
-            with st.expander("🗑️ Gerenciar Dados"):
+            with st.expander("Gerenciar Dados"):
                 if st.button("Limpar Histórico Geral", type="primary", use_container_width=True):
                     st.session_state.historico_db = []
                     persistir_dados()
                     st.success("Histórico limpo!")
                     st.rerun()
 
-    # --- ÁREA PRINCIPAL ---
+    # --- ÁREA PRINCIPAL (NAVEGAÇÃO SEM EMOJIS) ---
     aba = st.tabs([
-        "📊 Dashboard Geral", 
-        "📦 Gestão de Patrimônio", 
-        "📱 Conferência / Auditoria", 
-        "🏷️ Emissão de Etiquetas", 
-        "📑 Relatórios"
+        "Dashboard Geral", 
+        "Gestão de Patrimônio", 
+        "Conferência / Auditoria", 
+        "Emissão de Etiquetas", 
+        "Relatórios"
     ])
     
     with aba[0]:
@@ -423,8 +435,8 @@ else:
         st.markdown("<br><hr>", unsafe_allow_html=True)
         
         # --- SEÇÃO DE IMPORTAÇÃO DE PLANILHA NA ABA GESTÃO ---
-        with st.expander("📥 Importar Planilha de Patrimônio (Excel / CSV)", expanded=False):
-            st.markdown("### 📋 Orientações sobre a Formatação da Planilha")
+        with st.expander("Importar Planilha de Patrimônio (Excel / CSV)", expanded=False):
+            st.markdown("### Orientações sobre a Formatação da Planilha")
             st.markdown("""
             Para garantir que o sistema reconheça corretamente todas as informações, a primeira linha da sua planilha deve conter **exatamente os nomes de colunas (cabeçalho)** listados abaixo:
             """)
@@ -470,7 +482,7 @@ else:
             buffer_modelo.seek(0)
 
             st.download_button(
-                label="📥 Baixar Planilha Modelo (.xlsx)",
+                label="Baixar Planilha Modelo (.xlsx)",
                 data=buffer_modelo,
                 file_name="modelo_importacao_patrimonio.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -486,7 +498,7 @@ else:
                     else:
                         df_import = pd.read_excel(arquivo_upload)
                     
-                    st.write("🔍 **Pré-visualização dos Dados Importados:**")
+                    st.write("Pré-visualização dos Dados Importados:")
                     st.dataframe(df_import.head(10), use_container_width=True)
                     
                     mod_import = st.radio(
@@ -494,7 +506,7 @@ else:
                         ["Adicionar à base existente (Recomendado)", "Substituir base inteira"]
                     )
                     
-                    if st.button("🚀 Confirmar Importação", type="primary"):
+                    if st.button("Confirmar Importação", type="primary"):
                         df_import = df_import.fillna("")
                         novos_itens = df_import.to_dict(orient="records")
                         
@@ -505,10 +517,10 @@ else:
                             
                         persistir_dados()
                         
-                        st.success(f"✅ Importação realizada com sucesso! {len(novos_itens)} itens adicionados/atualizados.")
+                        st.success(f"Importação realizada com sucesso! {len(novos_itens)} itens adicionados/atualizados.")
                         st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Erro ao ler e importar o arquivo: {str(e)}")
+                    st.error(f"Erro ao ler e importar o arquivo: {str(e)}")
 
     with aba[2]:
         try:
@@ -529,7 +541,7 @@ else:
                 render_conferencia(st.session_state.patrimonio_db, st.session_state.historico_db)
 
     with aba[3]:
-        st.subheader("🏷️ Gerador de Etiquetas Patrimoniais")
+        st.subheader("Gerador de Etiquetas Patrimoniais")
         df_patrimonio = pd.DataFrame(st.session_state.patrimonio_db)
         
         if not df_patrimonio.empty:
@@ -575,7 +587,7 @@ else:
                         pdf_bytes = gerar_pdf_etiqueta(etiqueta_cod, item_titulo)
 
                         st.download_button(
-                            label="📄 Baixar Etiqueta em PDF (50x30mm)",
+                            label="Baixar Etiqueta em PDF (50x30mm)",
                             data=pdf_bytes,
                             file_name=f"etiqueta_{etiqueta_cod}.pdf",
                             mime="application/pdf",
