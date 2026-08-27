@@ -133,7 +133,15 @@ def render_etiquetas(patrimonio_db, logo_path=None):
                     val_float = 0.0
 
                 val_fmt = f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                nf_arq = item.get('arquivo_nf') or "Nenhum arquivo anexado"
+                
+                # --- TRATAMENTO CORRIGIDO PARA O ARQUIVO NF ---
+                raw_nf = item.get('arquivo_nf')
+                if isinstance(raw_nf, dict):
+                    nf_arq = raw_nf.get("nome_arquivo", "Anexado")
+                elif isinstance(raw_nf, str) and raw_nf.strip():
+                    nf_arq = raw_nf
+                else:
+                    nf_arq = "Nenhum arquivo anexado"
 
                 st.markdown(f"""
                 **Código:** `{item.get('etiqueta', 'N/A')}`  
@@ -152,6 +160,6 @@ def render_etiquetas(patrimonio_db, logo_path=None):
                 """)
 
 def render_relatorios(patrimonio_db, *args, **kwargs):
-    """Função principal chamada para renderizar a página de relatórios/etiquetas."""
+    """Função principal chamada para renderizar a página de relatorios/etiquetas."""
     st.title("Relatórios e Etiquetas")
     render_etiquetas(patrimonio_db)
