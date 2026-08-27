@@ -10,9 +10,9 @@ from PIL import Image
 from fpdf import FPDF
 import qrcode
 
-# --- CAMINHO DA LOGO ATUALIZADO ---
+# --- CAMINHO DA LOGO ATUALIZADO PARA JPG ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOGO_PATH = os.path.join(BASE_DIR, "ispn2.png")
+LOGO_PATH = os.path.join(BASE_DIR, "ispn2.jpg")
 
 # Função auxiliar para carregar imagem com segurança
 def carregar_logo():
@@ -176,7 +176,7 @@ def gerar_pdf_etiqueta(codigo_etiqueta):
     pdf.set_draw_color(200, 200, 200)
     pdf.rect(1, 1, 48, 28)
 
-    # 1. ESQUERDA: LOGO COMPLETA (ispn2.png)
+    # 1. ESQUERDA: LOGO COMPLETA (ispn2.jpg)
     if os.path.exists(LOGO_PATH):
         try:
             pdf.image(LOGO_PATH, x=3, y=4, w=22)
@@ -611,7 +611,7 @@ else:
                                 if img_logo:
                                     st.image(img_logo, use_container_width=True)
                                 else:
-                                    st.warning("Imagem 'ispn2.png' não encontrada na pasta raiz.")
+                                    st.warning("Imagem 'ispn2.jpg' não encontrada na pasta raiz.")
 
                             with col_qr:
                                 st.markdown("<p style='text-align: center; color: #555; margin: 0; font-size: 13px;'>Patrimônio</p>", unsafe_allow_html=True)
