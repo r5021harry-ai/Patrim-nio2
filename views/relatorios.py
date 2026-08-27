@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 def render_relatorios(patrimonio_db, historico_db):
-    st.title("Relatórios do Sistema")
+    # Título removido para evitar duplicidade com a navegação
     st.caption("Consulte a relação geral dos bens e o histórico de movimentações do sistema.")
 
     tab_geral, tab_historico = st.tabs(["Relação Geral & Filtros", "Histórico Geral do Sistema"])
@@ -15,7 +15,6 @@ def render_relatorios(patrimonio_db, historico_db):
         else:
             df = pd.DataFrame(patrimonio_db)
 
-            # Filtros dinâmicos
             col_f1, col_f2 = st.columns(2)
             
             col_status = next((c for c in ['status', 'estado', 'Status', 'Estado'] if c in df.columns), None)
@@ -35,7 +34,6 @@ def render_relatorios(patrimonio_db, historico_db):
                 else:
                     filtro_local = "Todos"
 
-            # Aplicação dos filtros
             df_filtrado = df.copy()
             if filtro_status != "Todos" and col_status:
                 df_filtrado = df_filtrado[df_filtrado[col_status].astype(str) == filtro_status]
@@ -44,7 +42,6 @@ def render_relatorios(patrimonio_db, historico_db):
 
             st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
 
-            # Exportação CSV
             csv = df_filtrado.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="Baixar Relatório (CSV)",
@@ -61,7 +58,6 @@ def render_relatorios(patrimonio_db, historico_db):
         else:
             df_hist = pd.DataFrame(historico_db)
             
-            # Ordenar mais recentes primeiro, se a coluna existir
             if "data_hora" in df_hist.columns:
                 df_hist = df_hist.sort_values(by="data_hora", ascending=False)
 
