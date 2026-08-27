@@ -171,25 +171,21 @@ def gerar_pdf_etiqueta(codigo_etiqueta):
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
     
-    # Borda fina e discreta
     pdf.set_line_width(0.2)
     pdf.set_draw_color(200, 200, 200)
     pdf.rect(1, 1, 48, 28)
 
-    # 1. ESQUERDA: LOGO COMPLETA (ispn2.jpg)
     if os.path.exists(LOGO_PATH):
         try:
             pdf.image(LOGO_PATH, x=3, y=4, w=22)
         except Exception:
             pass
 
-    # 2. DIREITA: TEXTO 'Patrimônio', QR CODE E CÓDIGO
     pdf.set_xy(26, 3)
     pdf.set_font("Arial", "", 8)
     pdf.set_text_color(70, 70, 70)
     pdf.cell(21, 4, "Patrimônio", 0, 1, 'C')
 
-    # QR Code
     etiqueta_str = str(codigo_etiqueta)
     qr_buffer = gerar_qrcode(etiqueta_str)
     
@@ -199,7 +195,6 @@ def gerar_pdf_etiqueta(codigo_etiqueta):
 
     pdf.image(tmp_path, x=29.5, y=7.5, w=14, h=14)
 
-    # Número da Etiqueta
     pdf.set_xy(26, 22)
     pdf.set_font("Arial", "", 8)
     pdf.set_text_color(0, 0, 0)
@@ -259,7 +254,7 @@ render_gestao = gest_mod.render_gestao
 render_relatorios = rel_mod.render_relatorios
 render_conferencia = conf_mod.render_conferencia
 
-# --- FUNÇÃO AUXILIAR DE PERSISTÊNCIA DE DADOS (CALLBACK) ---
+# --- FUNÇÃO AUXILIAR DE PERSISTÊNCIA DE DADOS ---
 def persistir_dados():
     if save_all_data:
         save_all_data(
@@ -635,10 +630,17 @@ else:
                         st.markdown(f"**Item:** {item_dados.get(col_nome, 'N/A')}")
                         for key, val in item_dados.items():
                             if key not in [col_etiqueta, col_nome]:
+                                # TRATAMENTO SEGURO DA NF
+                                if key == 'arquivo_nf':
+                                    if isinstance(val, dict):
+                                        val = val.get("nome_arquivo", "Anexado")
+                                    elif not val:
+                                        val = "Nenhum arquivo anexado"
                                 st.markdown(f"**{str(key).title()}:** {val}")
         else:
             st.info("Nenhum patrimônio disponível.")
 
+    # --- ABA 4: RELATÓRIOS ---
     with aba[4]:
         try:
             render_relatorios(st.session_state.patrimonio_db, st.session_state.historico_db, st.session_state.cidades_db)
